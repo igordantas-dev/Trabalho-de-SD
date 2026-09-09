@@ -4,7 +4,7 @@ Trabalho prático desenvolvido para a disciplina de Sistemas Distribuídos. O pr
 
 ---
 
-## 👥 Integrantes do Grupo
+## Integrantes do Grupo
 
 - Andressa Gonçalves Barros
 - Igor Carvalho Dantas
@@ -12,7 +12,7 @@ Trabalho prático desenvolvido para a disciplina de Sistemas Distribuídos. O pr
 
 ---
 
-## 🚀 Escopo do Projeto
+## Escopo do Projeto
 
 O sistema **GymFlow** gerencia o fluxo de entrada e prescrições de treinos em uma rede de academias. A arquitetura é dividida em dois microsserviços backend que se comunicam por chamadas RPC síncronas usando **Protocol Buffers (.proto)**.
 
@@ -28,7 +28,7 @@ O sistema **GymFlow** gerencia o fluxo de entrada e prescrições de treinos em 
 
 ---
 
-## 🏗️ Arquitetura do Projeto
+## Arquitetura do Projeto
 
 ```text
 Cliente (Local/App)
@@ -47,7 +47,7 @@ Validação de Matrícula e Geração de Treino
 
 ---
 
-## 🛠️ Pré-requisitos
+## Pré-requisitos
 
 - Java JDK 21 configurado no ambiente.
 - Git para clonar e versionar o código.
@@ -55,7 +55,7 @@ Validação de Matrícula e Geração de Treino
 
 ---
 
-## ⚙️ Compilação e Build do Projeto
+## Compilação e Build do Projeto
 
 Antes de rodar os serviços pela primeira vez, é necessário compilar o módulo de contratos (`contratos-grpc`). Isso gera automaticamente os stubs e classes Java a partir do arquivo `academia.proto`.
 
@@ -71,11 +71,11 @@ chmod +x mvnw
 
 ---
 
-## 💻 Como Executar Localmente (3 Terminais)
+## Como Executar Localmente (3 Terminais)
 
 Para simular o ecossistema distribuído localmente, abra três abas ou janelas do terminal, todas posicionadas na raiz do projeto (`~/academia`).
 
-### 1) Iniciar o Servidor de Treinos (Terminal 1)
+### Terminal 1 - Iniciar o Servidor de Treinos 
 
 O serviço de treinos deve ser iniciado primeiro para ficar aguardando as requisições de validação:
 
@@ -85,7 +85,7 @@ O serviço de treinos deve ser iniciado primeiro para ficar aguardando as requis
 
 Saída esperada: `Servidor de Treinos gRPC rodando na porta 9091`.
 
-### 2) Iniciar o Servidor de Atendimento (Terminal 2)
+### Terminal 2 - Iniciar o Servidor de Atendimento
 
 Este serviço atuará como fachada/gateway gRPC para as requisições dos clientes:
 
@@ -95,7 +95,7 @@ Este serviço atuará como fachada/gateway gRPC para as requisições dos client
 
 Saída esperada: `Servidor de Atendimento gRPC rodando na porta 9090`.
 
-### 3) Executar o Cliente de Testes (Terminal 3)
+### Terminal 3 - Executar o Cliente de Testes
 
 Execute o cliente para simular as chamadas da catraca/app consultando treinos e realizando check-in:
 
@@ -105,7 +105,7 @@ Execute o cliente para simular as chamadas da catraca/app consultando treinos e 
 
 ---
 
-## ☁️ Implantação e Execução na GCP
+##  Implantação e Execução na GCP
 
 ### Configuração de Firewall na GCP
 
@@ -142,6 +142,6 @@ export ATENDIMENTO_HOST="<IP_PUBLICO_VM_ATENDIMENTO>"
 
 ---
 
-## ✅ Resumo
+## Resumo
 
 Este projeto modela um ambiente distribuído de microsserviços com comunicação gRPC, separando responsabilidades entre atendimento e treino, permitindo processamento desacoplado e execução em infraestrutura cloud ou localmente.
