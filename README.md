@@ -141,7 +141,3 @@ export ATENDIMENTO_HOST="<IP_PUBLICO_VM_ATENDIMENTO>"
 ```
 
 ---
-
-## Resumo
-
-Este projeto modela um ambiente distribuído de microsserviços com comunicação gRPC, separando responsabilidades entre atendimento e treino, permitindo processamento desacoplado e execução em infraestrutura cloud ou localmente.
