@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package academia.proto;
+
+option java_multiple_files = true;
+option java_package = "academia.grpc";
+
+// ==========================================
+// SERVIÇO B: Treino e Validação de Matrícula
+// ==========================================
+service TreinoService {
+  // Solicita geração de treino com base no perfil do aluno
+  rpc GerarTreino (SolicitacaoTreinoRequest) returns (TreinoResponse);
+  
+  // Valida a situação do aluno e realiza check-in na unidade
+  rpc RealizarCheckin (CheckinRequest) returns (CheckinResponse);
+}
+
+// Mensagens de Requisição e Resposta para Treino
+message SolicitacaoTreinoRequest {
+  string id_aluno = 1;
+  string nome_aluno = 2;
+  string objetivo = 3;          // Ex: HIPERTROFIA, EMAGRECIMENTO, CARDIO
+  string nivel_experiencia = 4; // Ex: INICIANTE, INTERMEDIARIO, AVANCADO
+}
+
+message ExercicioProto {
+  string nome = 1;
+  int32 series = 2;
+  int32 repeticoes = 3;
+  string descanso = 4;
+}
+
+message TreinoResponse {
+  string id_treino = 1;
+  string id_aluno = 2;
+  string status_matricula = 3; // ATIVA, CANCELADA, INADIMPLENTE
+  repeated ExercicioProto exercicios = 4;
+  string mensagem = 5;
+}
+
+// Mensagens de Requisição e Resposta para Check-in
+message CheckinRequest {
+  string id_aluno = 1;
+  string id_unidade = 2;
+}
+
+message CheckinResponse {
+  string id_checkin = 1;
+  bool autorizado = 2;
+  string data_hora = 3;
+  string mensagem = 4;
+}

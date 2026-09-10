@@ -1,0 +1,13 @@
+# Artefatos de compilação
+target/
+*.class
+*.jar
+
+# Configurações de IDEs e do SO
+.idea/
+.vscode/
+*.iml
+.settings/
+.classpath
+.project
+.DS_Store
