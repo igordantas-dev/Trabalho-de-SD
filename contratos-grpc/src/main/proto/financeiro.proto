@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package academia.proto;
+
+option java_multiple_files = true;
+option java_package = "academia.grpc";
+
+// ==========================================
+// SERVIÇO 3: Gestão Financeira (Mensalidades)
+// ==========================================
+service FinanceiroService {
+  // Gera uma mensalidade para um aluno (normalmente no início do mês)
+  rpc GerarMensalidade (GerarMensalidadeRequest) returns (MensalidadeResponse);
+
+  // Registra o pagamento de uma mensalidade
+  rpc RegistrarPagamento (RegistrarPagamentoRequest) returns (MensalidadeResponse);
+
+  // Busca uma mensalidade pelo ID
+  rpc BuscarMensalidade (BuscarMensalidadeRequest) returns (MensalidadeResponse);
+
+  // Lista todas as mensalidades de um aluno
+  rpc ListarMensalidadesPorAluno (ListarMensalidadesPorAlunoRequest) returns (ListaMensalidadesResponse);
+}
+
+// ─── Mensagens de Requisição ───────────────────────────────────────────────
+
+message GerarMensalidadeRequest {
+  string aluno_id        = 1; // UUID do aluno (referência lógica)
+  double valor           = 2; // Valor em reais — Ex: 99.90
+  string data_vencimento = 3; // ISO-8601: "2025-10-10"
+  string descricao       = 4; // Ex: "Mensalidade outubro/2025"
+}
+
+message RegistrarPagamentoRequest {
+  string mensalidade_id  = 1; // UUID da mensalidade
+  string forma_pagamento = 2; // PIX | CARTAO | DINHEIRO | BOLETO
+}
+
+message BuscarMensalidadeRequest {
+  string id = 1; // UUID da mensalidade
+}
+
+message ListarMensalidadesPorAlunoRequest {
+  string aluno_id = 1; // UUID do aluno
+}
+
+// ─── Mensagens de Resposta ────────────────────────────────────────────────
+
+message MensalidadeResponse {
+  string id              = 1;
+  string aluno_id        = 2;
+  double valor           = 3;
+  string data_vencimento = 4;
+  string data_pagamento  = 5; // vazia enquanto status = PENDENTE
+  string status          = 6; // PENDENTE | PAGO | ATRASADO
+  string forma_pagamento = 7; // preenchido após pagamento
+  string descricao       = 8;
+  string mensagem        = 9; // Mensagem de contexto da operação
+}
+
+message ListaMensalidadesResponse {
+  repeated MensalidadeResponse mensalidades = 1;
+}

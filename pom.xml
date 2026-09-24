@@ -11,9 +11,11 @@
 
     <modules>
         <module>contratos-grpc</module>
-        <module>atendimento-service</module>
+        <module>aluno-service</module>
         <module>treino-service</module>
-  </modules>
+        <module>financeiro-service</module>
+        <module>api-gateway</module>
+    </modules>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -43,6 +45,12 @@
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-stub</artifactId>
                 <version>${grpc.version}</version>
+            </dependency>
+            <!-- Integração do HikariCP com o Hibernate (pool de conexões) -->
+            <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-hikaricp</artifactId>
+                <version>6.6.13.Final</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

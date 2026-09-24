@@ -10,17 +10,17 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>treino-service</artifactId>
+    <artifactId>aluno-service</artifactId>
 
     <dependencies>
-        <!-- Contratos gRPC -->
+        <!-- Contratos gRPC gerados pelo módulo contratos-grpc -->
         <dependency>
             <groupId>aula.sd</groupId>
             <artifactId>contratos-grpc</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Servidor gRPC -->
+        <!-- Servidor gRPC (Netty embutido) -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
@@ -46,7 +46,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Pool de conexões -->
+        <!-- Pool de conexões HikariCP -->
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
@@ -64,7 +64,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>academia.treino.ServidorTreinoGrpc</mainClass>
+                    <mainClass>academia.aluno.ServidorAlunoGrpc</mainClass>
                 </configuration>
             </plugin>
         </plugins>

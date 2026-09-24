@@ -1,63 +1,221 @@
 package academia.treino;
 
 import academia.grpc.*;
+import academia.treino.entidade.FichaTreino;
+import academia.treino.entidade.ItemTreino;
+import academia.treino.repositorio.TreinoRepositorio;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import java.time.LocalDateTime;
-import java.util.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityTransaction;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Implementação do serviço gRPC TreinoService.
+ * Todos os dados são persistidos no PostgreSQL via JPA.
+ * Não há mocks, dados em memória ou simulações.
+ */
 public class TreinoServiceImpl extends TreinoServiceGrpc.TreinoServiceImplBase {
 
-    // Simulação de banco de dados em memória
-    private static final Map<String, String> MATRICULAS = Map.of(
-        "ALUNO-101", "ATIVA",
-        "ALUNO-102", "INADIMPLENTE",
-        "ALUNO-103", "ATIVA"
-    );
+    private final EntityManager em;
+    private final TreinoRepositorio repositorio;
+
+    public TreinoServiceImpl(EntityManager em) {
+        this.em          = em;
+        this.repositorio = new TreinoRepositorio(em);
+    }
+
+    // ─── CriarFichaTreino ─────────────────────────────────────────────────
 
     @Override
-    public void gerarTreino(SolicitacaoTreinoRequest request, StreamObserver<TreinoResponse> responseObserver) {
-        String status = MATRICULAS.getOrDefault(request.getIdAluno(), "INEXISTENTE");
+    public void criarFichaTreino(CriarFichaTreinoRequest request,
+                                 StreamObserver<FichaTreinoResponse> responseObserver) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            FichaTreino ficha = new FichaTreino(
+                request.getAlunoId(),
+                request.getTitulo(),
+                request.getObjetivo()
+            );
 
-        TreinoResponse.Builder responseBuilder = TreinoResponse.newBuilder()
-                .setIdTreino(UUID.randomUUID().toString())
-                .setIdAluno(request.getIdAluno())
-                .setStatusMatricula(status);
+            for (ItemTreinoRequest itemReq : request.getItensList()) {
+                // Consulta se o aluno já realizou este exercício antes
+                // para sugerir automaticamente a última carga utilizada
+                double ultimaCarga = repositorio.ultimaCargaUsada(
+                    request.getAlunoId(), itemReq.getNomeExercicio());
 
-        if (!"ATIVA".equals(status)) {
-            responseBuilder.setMensagem("Geração de treino negada: Matrícula " + status)
-                           .build();
-        } else {
-            List<ExercicioProto> exercicios = new ArrayList<>();
-            if ("HIPERTROFIA".equalsIgnoreCase(request.getObjetivo())) {
-                exercicios.add(ExercicioProto.newBuilder().setNome("Supino Reto").setSeries(4).setRepeticoes(10).setDescanso("60s").build());
-                exercicios.add(ExercicioProto.newBuilder().setNome("Agachamento Livre").setSeries(4).setRepeticoes(8).setDescanso("90s").build());
-            } else {
-                exercicios.add(ExercicioProto.newBuilder().setNome("Corrida Esteira").setSeries(1).setRepeticoes(30).setDescanso("0s").build());
-                exercicios.add(ExercicioProto.newBuilder().setNome("Polichinelos").setSeries(3).setRepeticoes(20).setDescanso("30s").build());
+                double cargaSugerida = itemReq.getCargaSugerida() > 0
+                    ? itemReq.getCargaSugerida()
+                    : ultimaCarga; // usa a última carga real se não informada
+
+                ItemTreino item = new ItemTreino(
+                    itemReq.getNomeExercicio(),
+                    itemReq.getGrupoMuscular(),
+                    itemReq.getSeries(),
+                    itemReq.getRepeticoes(),
+                    cargaSugerida
+                );
+                ficha.addItem(item);
             }
 
-            responseBuilder.addAllExercicios(exercicios)
-                           .setMensagem("Treino gerado com sucesso para o objetivo: " + request.getObjetivo());
+            tx.begin();
+            repositorio.salvar(ficha);
+            tx.commit();
+
+            System.out.println("[TreinoService] Ficha criada: id=" + ficha.getId()
+                + ", aluno=" + ficha.getAlunoId() + ", itens=" + ficha.getItens().size());
+
+            responseObserver.onNext(toResponse(ficha, "Ficha de treino criada com sucesso"));
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            System.err.println("[TreinoService] Erro ao criar ficha: " + e.getMessage());
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao criar ficha de treino: " + e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+
+    // ─── BuscarFichaTreino ────────────────────────────────────────────────
+
+    @Override
+    public void buscarFichaTreino(BuscarFichaTreinoRequest request,
+                                  StreamObserver<FichaTreinoResponse> responseObserver) {
+        try {
+            UUID id = UUID.fromString(request.getId());
+            Optional<FichaTreino> opcional = repositorio.buscarPorId(id);
+
+            if (opcional.isEmpty()) {
+                responseObserver.onError(
+                    Status.NOT_FOUND
+                        .withDescription("Ficha de treino não encontrada: " + request.getId())
+                        .asRuntimeException()
+                );
+                return;
+            }
+
+            responseObserver.onNext(toResponse(opcional.get(), "Ficha encontrada"));
+            responseObserver.onCompleted();
+
+        } catch (IllegalArgumentException e) {
+            responseObserver.onError(
+                Status.INVALID_ARGUMENT
+                    .withDescription("ID inválido: " + request.getId())
+                    .asRuntimeException()
+            );
+        }
+    }
+
+    // ─── ListarFichasPorAluno ─────────────────────────────────────────────
+
+    @Override
+    public void listarFichasPorAluno(ListarFichasPorAlunoRequest request,
+                                     StreamObserver<ListaFichasTreinoResponse> responseObserver) {
+        List<FichaTreino> fichas = repositorio.listarPorAluno(request.getAlunoId());
+
+        ListaFichasTreinoResponse.Builder builder = ListaFichasTreinoResponse.newBuilder();
+        for (FichaTreino ficha : fichas) {
+            builder.addFichas(toResponse(ficha, ""));
         }
 
-        responseObserver.onNext(responseBuilder.build());
+        responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
     }
 
+    // ─── RegistrarExecucao ────────────────────────────────────────────────
+
     @Override
-    public void realizarCheckin(CheckinRequest request, StreamObserver<CheckinResponse> responseObserver) {
-        String status = MATRICULAS.getOrDefault(request.getIdAluno(), "INEXISTENTE");
-        boolean autorizado = "ATIVA".equals(status);
+    public void registrarExecucao(RegistrarExecucaoRequest request,
+                                  StreamObserver<FichaTreinoResponse> responseObserver) {
+        EntityTransaction tx = em.getTransaction();
+        try {
+            UUID fichaId = UUID.fromString(request.getFichaId());
+            Optional<FichaTreino> opcional = repositorio.buscarPorId(fichaId);
 
-        CheckinResponse response = CheckinResponse.newBuilder()
-                .setIdCheckin(UUID.randomUUID().toString())
-                .setAutorizado(autorizado)
-                .setDataHora(LocalDateTime.now().toString())
-                .setMensagem(autorizado ? "Check-in realizado com sucesso na unidade " + request.getIdUnidade()
-                                        : "Check-in bloqueado. Situação cadastral: " + status)
-                .build();
+            if (opcional.isEmpty()) {
+                responseObserver.onError(
+                    Status.NOT_FOUND
+                        .withDescription("Ficha não encontrada: " + request.getFichaId())
+                        .asRuntimeException()
+                );
+                return;
+            }
 
-        responseObserver.onNext(response);
-        responseObserver.onCompleted();
+            FichaTreino ficha = opcional.get();
+
+            tx.begin();
+
+            // Atualiza cada item com a carga real utilizada pelo aluno
+            for (ExecucaoItemRequest execItem : request.getItensList()) {
+                UUID itemId = UUID.fromString(execItem.getItemId());
+                Optional<ItemTreino> itemOpcional = repositorio.buscarItemPorId(itemId);
+
+                if (itemOpcional.isPresent()) {
+                    ItemTreino item = itemOpcional.get();
+                    item.setCargaUsada(execItem.getCargaUsada());
+                    item.setConcluido(execItem.getConcluido());
+                    repositorio.atualizarItem(item);
+                }
+            }
+
+            // Marca a ficha como concluída
+            ficha.setStatus("CONCLUIDO");
+            ficha.setDataConclusao(LocalDateTime.now());
+            FichaTreino atualizada = repositorio.atualizar(ficha);
+
+            tx.commit();
+
+            System.out.println("[TreinoService] Execução registrada: ficha=" + fichaId
+                + ", itens atualizados=" + request.getItensCount());
+
+            responseObserver.onNext(toResponse(atualizada, "Treino registrado com sucesso!"));
+            responseObserver.onCompleted();
+
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            System.err.println("[TreinoService] Erro ao registrar execução: " + e.getMessage());
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao registrar execução: " + e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+
+    // ─── Helper: entidade → mensagem Protobuf ────────────────────────────
+
+    private FichaTreinoResponse toResponse(FichaTreino ficha, String mensagem) {
+        FichaTreinoResponse.Builder builder = FichaTreinoResponse.newBuilder()
+            .setId(ficha.getId().toString())
+            .setAlunoId(ficha.getAlunoId())
+            .setTitulo(ficha.getTitulo())
+            .setObjetivo(ficha.getObjetivo())
+            .setStatus(ficha.getStatus())
+            .setDataCriacao(ficha.getDataCriacao().toString())
+            .setDataConclusao(ficha.getDataConclusao() != null
+                ? ficha.getDataConclusao().toString() : "")
+            .setMensagem(mensagem);
+
+        for (ItemTreino item : ficha.getItens()) {
+            builder.addItens(ItemTreinoResponse.newBuilder()
+                .setId(item.getId().toString())
+                .setNomeExercicio(item.getNomeExercicio())
+                .setGrupoMuscular(item.getGrupoMuscular() != null ? item.getGrupoMuscular() : "")
+                .setSeries(item.getSeries())
+                .setRepeticoes(item.getRepeticoes())
+                .setCargaSugerida(item.getCargaSugerida() != null ? item.getCargaSugerida() : 0.0)
+                .setCargaUsada(item.getCargaUsada() != null ? item.getCargaUsada() : 0.0)
+                .setConcluido(item.getConcluido() != null && item.getConcluido())
+                .build());
+        }
+
+        return builder.build();
     }
 }

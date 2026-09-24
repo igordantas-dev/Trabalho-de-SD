@@ -1,4 +1,4 @@
-package academia.treino;
+package academia.financeiro;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -11,20 +11,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Ponto de entrada do Microsserviço de Treinos.
- * Porta gRPC: 9092
+ * Ponto de entrada do Microsserviço Financeiro.
+ * Porta gRPC: 9093
  *
  * Variáveis de ambiente (mesmo padrão da Aula 6):
  *   DB_URL      → jdbc:postgresql://HOST:5432/academia?sslmode=require
  *   DB_USER     → postgres
  *   DB_PASSWORD → senha_do_banco
  */
-public class ServidorTreinoGrpc {
+public class ServidorFinanceiroGrpc {
 
-    public static final int PORTA = 9092;
+    public static final int PORTA = 9093;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        // Configuração JPA via variáveis de ambiente
         Map<String, String> jpaProps = new HashMap<>();
         jpaProps.put("jakarta.persistence.jdbc.url",
             System.getenv().getOrDefault("DB_URL",
@@ -39,18 +38,18 @@ public class ServidorTreinoGrpc {
         jpaProps.put("hibernate.format_sql", "true");
 
         EntityManagerFactory emf = Persistence.createEntityManagerFactory(
-            "treino-pu", jpaProps);
+            "financeiro-pu", jpaProps);
         EntityManager em = emf.createEntityManager();
 
         Server server = ServerBuilder.forPort(PORTA)
-                .addService(new TreinoServiceImpl(em))
+                .addService(new FinanceiroServiceImpl(em))
                 .build();
 
         server.start();
-        System.out.println("Servidor de Treinos gRPC rodando na porta " + PORTA);
+        System.out.println("Servidor Financeiro gRPC rodando na porta " + PORTA);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("[TreinoService] Encerrando servidor...");
+            System.out.println("[FinanceiroService] Encerrando servidor...");
             server.shutdown();
             em.close();
             emf.close();
