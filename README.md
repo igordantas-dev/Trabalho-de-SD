@@ -23,7 +23,7 @@ O sistema **GymFlow** gerencia o fluxo de entrada e prescrições de treinos em 
 
 2. **treino-service (Microsserviço B - Servidor):**
    - Executa na **porta 9091**.
-   - Gerencia a base de matrículas em memória e valida se o aluno está ativo ou inadimplente.
+      - Mantém as matrículas em PostgreSQL e valida se o aluno está ativo ou inadimplente.
    - Gera a lista customizada de exercícios baseada no perfil do aluno (objetivo e nível de experiência) e autoriza ou bloqueia o check-in na catraca.
 
 ---
@@ -43,6 +43,38 @@ ServidorTreinoGrpc (VM 2 - GCP)
       │
       ▼
 Validação de Matrícula e Geração de Treino
+```
+
+## API REST da academia
+
+O `treino-service` mantém o gRPC na porta 9091 e também expõe as rotas REST na
+porta 8080. As matrículas são persistidas em PostgreSQL por Spring Data JPA.
+
+Para executar localmente com H2 em memória:
+
+```bash
+./mvnw -pl treino-service spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Para executar com PostgreSQL, configure as variáveis no mesmo terminal:
+
+```bash
+export DB_URL='jdbc:postgresql://localhost:5432/gymflow'
+export DB_USER='postgres'
+export DB_PASSWORD='SENHA_DO_BANCO'
+./mvnw -pl treino-service spring-boot:run
+```
+
+Rotas REST:
+
+```bash
+curl -i -X POST http://localhost:8080/treinos \
+      -H "Content-Type: application/json" \
+      -d '{"idAluno":"ALUNO-101","nomeAluno":"Ana","objetivo":"HIPERTROFIA","nivelExperiencia":"INTERMEDIARIO"}'
+
+curl -i -X POST http://localhost:8080/checkins \
+      -H "Content-Type: application/json" \
+      -d '{"idAluno":"ALUNO-101","idUnidade":"UNIDADE-CENTRO"}'
 ```
 
 ---

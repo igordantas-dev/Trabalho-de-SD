@@ -13,7 +13,7 @@
         <module>contratos-grpc</module>
         <module>atendimento-service</module>
         <module>treino-service</module>
-  </modules>
+    </modules>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -25,10 +25,18 @@
         <build.helper.maven.plugin.version>3.6.1</build.helper.maven.plugin.version>
         <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
         <exec.maven.plugin.version>3.6.3</exec.maven.plugin.version>
+        <spring-boot.version>3.5.6</spring-boot.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty-shaded</artifactId>
