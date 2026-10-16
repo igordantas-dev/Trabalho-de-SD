@@ -63,12 +63,13 @@ public class GatewayExceptionHandler {
                 : "Erro no microsserviço interno";
 
         HttpStatus httpStatus = switch (ex.getStatus().getCode()) {
-            case NOT_FOUND          -> HttpStatus.NOT_FOUND;
-            case ALREADY_EXISTS     -> HttpStatus.CONFLICT;
-            case INVALID_ARGUMENT   -> HttpStatus.BAD_REQUEST;
+            case NOT_FOUND           -> HttpStatus.NOT_FOUND;
+            case ALREADY_EXISTS      -> HttpStatus.CONFLICT;
+            case INVALID_ARGUMENT    -> HttpStatus.BAD_REQUEST;
             case FAILED_PRECONDITION -> HttpStatus.UNPROCESSABLE_ENTITY;
-            case UNAVAILABLE        -> HttpStatus.SERVICE_UNAVAILABLE;
-            default                 -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case UNAVAILABLE         -> HttpStatus.SERVICE_UNAVAILABLE;
+            case DEADLINE_EXCEEDED   -> HttpStatus.GATEWAY_TIMEOUT;
+            default                  -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 
         return ResponseEntity.status(httpStatus).body(Map.of(

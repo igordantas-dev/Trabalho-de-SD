@@ -1,17 +1,28 @@
 {
 	"info": {
-		"_postman_id": "academia-distribuida-apis",
-		"name": "Academia - Sistema Distribuído",
-		"description": "Coleção de endpoints REST do API Gateway (Porta 8080) integrados aos microsserviços gRPC (AlunoService :9091, TreinoService :9092, FinanceiroService :9093).",
+		"_postman_id": "academia-distribuida-apis-v2",
+		"name": "Academia - Sistema Distribuído (V2 com Verbos & JWT)",
+		"description": "Coleção de endpoints REST do API Gateway (Porta 8080) com autenticação JWT (Aula 7), todas as rotas iniciando por verbos, Swagger integrado e chamadas gRPC internas para os 3 microsserviços.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwtToken}}",
+				"type": "string"
+			}
+		]
 	},
 	"item": [
 		{
-			"name": "1. Alunos",
+			"name": "0. Autenticação (JWT)",
 			"item": [
 				{
-					"name": "Cadastrar Aluno",
+					"name": "Realizar Login / Autenticar",
 					"request": {
+						"auth": { "type": "noauth" },
 						"method": "POST",
 						"header": [
 							{
@@ -21,63 +32,75 @@
 						],
 						"body": {
 							"mode": "raw",
+							"raw": "{\n  \"username\": \"aluno\",\n  \"senha\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/autenticar",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "autenticar"]
+						},
+						"description": "Gera e retorna o token JWT assinado com HS256 (30 minutos de validade). Copie o token retornado para a variável {{jwtToken}}."
+					}
+				},
+				{
+					"name": "Gerar Token Rápido de Laboratório",
+					"request": {
+						"auth": { "type": "noauth" },
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/gerar-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "gerar-token"]
+						},
+						"description": "Emite instantaneamente um token JWT de demonstração."
+					}
+				}
+			]
+		},
+		{
+			"name": "1. Gestão de Alunos",
+			"item": [
+				{
+					"name": "Cadastrar Aluno",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
 							"raw": "{\n  \"nome\": \"Carlos Silva\",\n  \"cpf\": \"123.456.789-00\",\n  \"email\": \"carlos.silva@email.com\",\n  \"telefone\": \"(11) 98765-4321\",\n  \"peso\": 82.5,\n  \"altura\": 1.78\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/alunos",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"alunos"
-							]
-						},
-						"description": "Cadastra um novo aluno no PostgreSQL via AlunoService (gRPC :9091)."
+							"raw": "{{baseUrl}}/api/cadastrar-aluno",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "cadastrar-aluno"]
+						}
 					}
 				},
 				{
 					"name": "Listar Alunos",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/alunos",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"alunos"
-							]
-						},
-						"description": "Lista todos os alunos cadastrados."
+							"raw": "{{baseUrl}}/api/listar-alunos",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "listar-alunos"]
+						}
 					}
 				},
 				{
 					"name": "Buscar Aluno por ID",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/alunos/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"alunos",
-								":id"
-							],
+							"raw": "{{baseUrl}}/api/buscar-aluno/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "buscar-aluno", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DO_ALUNO",
-									"description": "UUID do aluno"
-								}
+								{ "key": "id", "value": "UUID_DO_ALUNO" }
 							]
-						},
-						"description": "Busca detalhes de um aluno pelo UUID."
+						}
 					}
 				},
 				{
@@ -85,270 +108,182 @@
 					"request": {
 						"method": "PATCH",
 						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
+							{ "key": "Content-Type", "value": "application/json" }
 						],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"status\": \"ATIVO\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/alunos/:id/status",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"alunos",
-								":id",
-								"status"
-							],
+							"raw": "{{baseUrl}}/api/atualizar-status-aluno/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "atualizar-status-aluno", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DO_ALUNO"
-								}
+								{ "key": "id", "value": "UUID_DO_ALUNO" }
 							]
-						},
-						"description": "Atualiza o status de matrícula (ATIVO, INATIVO, INADIMPLENTE)."
+						}
 					}
 				}
 			]
 		},
 		{
-			"name": "2. Treinos",
+			"name": "2. Fichas de Treino & IA",
 			"item": [
 				{
-					"name": "Criar Ficha de Treino",
+					"name": "Criar Ficha Manual",
 					"request": {
 						"method": "POST",
 						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
+							{ "key": "Content-Type", "value": "application/json" }
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"titulo\": \"Treino A - Peito e Tríceps\",\n  \"objetivo\": \"HIPERTROFIA\",\n  \"itens\": [\n    {\n      \"nomeExercicio\": \"Supino Reto\",\n      \"grupoMuscular\": \"Peito\",\n      \"series\": 4,\n      \"repeticoes\": 10,\n      \"cargaSugerida\": 30.0\n    },\n    {\n      \"nomeExercicio\": \"Tríceps Corda\",\n      \"grupoMuscular\": \"Tríceps\",\n      \"series\": 3,\n      \"repeticoes\": 12,\n      \"cargaSugerida\": 15.0\n    }\n  ]\n}"
+							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"titulo\": \"Treino A — Peito e Tríceps\",\n  \"objetivo\": \"HIPERTROFIA\",\n  \"itens\": [\n    {\n      \"nomeExercicio\": \"Supino Reto\",\n      \"grupoMuscular\": \"Peito\",\n      \"series\": 4,\n      \"repeticoes\": 10,\n      \"cargaSugerida\": 30.0\n    },\n    {\n      \"nomeExercicio\": \"Tríceps Corda\",\n      \"grupoMuscular\": \"Tríceps\",\n      \"series\": 3,\n      \"repeticoes\": 12,\n      \"cargaSugerida\": 15.0\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/treinos",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"treinos"
-							]
+							"raw": "{{baseUrl}}/api/criar-ficha-treino",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "criar-ficha-treino"]
+						}
+					}
+				},
+				{
+					"name": "Gerar Treino com IA",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"objetivo\": \"HIPERTROFIA\",\n  \"nivel\": \"INTERMEDIARIO\",\n  \"focoMuscular\": \"Peito e Tríceps\",\n  \"observacoes\": \"Foco em hipertrofia miofibrilar\"\n}"
 						},
-						"description": "Cria uma ficha de treino com exercícios para um aluno via TreinoService (gRPC :9092)."
+						"url": {
+							"raw": "{{baseUrl}}/api/gerar-treino-ia",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "gerar-treino-ia"]
+						}
 					}
 				},
 				{
 					"name": "Buscar Ficha por ID",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/treinos/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"treinos",
-								":id"
-							],
+							"raw": "{{baseUrl}}/api/buscar-ficha-treino/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "buscar-ficha-treino", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DA_FICHA"
-								}
+								{ "key": "id", "value": "UUID_DA_FICHA" }
 							]
-						},
-						"description": "Busca detalhes da ficha de treino e seus itens."
+						}
 					}
 				},
 				{
 					"name": "Listar Fichas por Aluno",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/treinos/aluno/:alunoId",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"treinos",
-								"aluno",
-								":alunoId"
-							],
+							"raw": "{{baseUrl}}/api/listar-fichas-aluno/:alunoId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "listar-fichas-aluno", ":alunoId"],
 							"variable": [
-								{
-									"key": "alunoId",
-									"value": "UUID_DO_ALUNO"
-								}
+								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
 							]
-						},
-						"description": "Lista todas as fichas de treino vinculadas a um aluno."
+						}
 					}
 				},
 				{
-					"name": "Registrar Execução do Treino (Cargas Reais)",
+					"name": "Registrar Execução (Cargas Reais)",
 					"request": {
 						"method": "POST",
 						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
+							{ "key": "Content-Type", "value": "application/json" }
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"itens\": [\n    {\n      \"itemId\": \"UUID_DO_ITEM_1\",\n      \"cargaUsada\": 35.0,\n      \"concluido\": true\n    },\n    {\n      \"itemId\": \"UUID_DO_ITEM_2\",\n      \"cargaUsada\": 17.5,\n      \"concluido\": true\n    }\n  ]\n}"
+							"raw": "{\n  \"itens\": [\n    {\n      \"itemId\": \"UUID_DO_ITEM_1\",\n      \"cargaUsada\": 35.0,\n      \"concluido\": true\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/treinos/:id/execucao",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"treinos",
-								":id",
-								"execucao"
-							],
+							"raw": "{{baseUrl}}/api/registrar-execucao-treino/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "registrar-execucao-treino", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DA_FICHA"
-								}
+								{ "key": "id", "value": "UUID_DA_FICHA" }
 							]
-						},
-						"description": "Registra a conclusão do treino e salva as cargas reais utilizadas em cada exercício."
+						}
 					}
 				}
 			]
 		},
 		{
-			"name": "3. Financeiro",
+			"name": "3. Gestão Financeira",
 			"item": [
 				{
 					"name": "Gerar Mensalidade",
 					"request": {
 						"method": "POST",
 						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
+							{ "key": "Content-Type", "value": "application/json" }
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"valor\": 120.00,\n  \"dataVencimento\": \"2026-10-10\",\n  \"descricao\": \"Mensalidade Outubro/2026\"\n}"
+							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"valor\": 119.90,\n  \"dataVencimento\": \"2026-11-15\",\n  \"descricao\": \"Mensalidade Novembro/2026\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/mensalidades",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"mensalidades"
-							]
-						},
-						"description": "Gera uma nova mensalidade/cobrança no FinanceiroService (gRPC :9093)."
+							"raw": "{{baseUrl}}/api/gerar-mensalidade",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "gerar-mensalidade"]
+						}
 					}
 				},
 				{
 					"name": "Buscar Mensalidade por ID",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/mensalidades/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"mensalidades",
-								":id"
-							],
+							"raw": "{{baseUrl}}/api/buscar-mensalidade/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "buscar-mensalidade", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DA_MENSALIDADE"
-								}
+								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
 							]
-						},
-						"description": "Busca os detalhes de uma mensalidade pelo ID."
+						}
 					}
 				},
 				{
 					"name": "Listar Mensalidades por Aluno",
 					"request": {
 						"method": "GET",
-						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/mensalidades/aluno/:alunoId",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"mensalidades",
-								"aluno",
-								":alunoId"
-							],
+							"raw": "{{baseUrl}}/api/listar-mensalidades-aluno/:alunoId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "listar-mensalidades-aluno", ":alunoId"],
 							"variable": [
-								{
-									"key": "alunoId",
-									"value": "UUID_DO_ALUNO"
-								}
+								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
 							]
-						},
-						"description": "Lista todas as mensalidades e seus status de um aluno."
+						}
 					}
 				},
 				{
-					"name": "Registrar Pagamento de Mensalidade",
+					"name": "Registrar Pagamento",
 					"request": {
 						"method": "POST",
 						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
+							{ "key": "Content-Type", "value": "application/json" }
 						],
 						"body": {
 							"mode": "raw",
 							"raw": "{\n  \"formaPagamento\": \"PIX\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/mensalidades/:id/pagamento",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"mensalidades",
-								":id",
-								"pagamento"
-							],
+							"raw": "{{baseUrl}}/api/registrar-pagamento-mensalidade/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "registrar-pagamento-mensalidade", ":id"],
 							"variable": [
-								{
-									"key": "id",
-									"value": "UUID_DA_MENSALIDADE"
-								}
+								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
 							]
-						},
-						"description": "Registra o pagamento da mensalidade (PIX | CARTAO | DINHEIRO | BOLETO)."
+						}
 					}
 				}
 			]
@@ -358,6 +293,10 @@
 		{
 			"key": "baseUrl",
 			"value": "http://localhost:8080"
+		},
+		{
+			"key": "jwtToken",
+			"value": ""
 		}
 	]
 }

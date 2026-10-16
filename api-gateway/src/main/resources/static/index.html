@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymDist — Sistema Distribuído de Academia</title>
+  <meta name="description" content="Plataforma de gestão de academia baseada em microsserviços distribuídos gRPC, Spring Boot API Gateway e Autenticação JWT.">
+
+  <!-- Fontes Google Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Barra de Notificações / Toasts -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Header Superior -->
+  <header class="main-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6.5 6.5 11 11"/>
+            <path d="m21 21-1-1"/>
+            <path d="m3 3 1 1"/>
+            <path d="m18 22 4-4"/>
+            <path d="m2 6 4-4"/>
+            <path d="m3 10 7-7"/>
+            <path d="m14 21 7-7"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>GymDist <span>Pro</span></h1>
+          <p>Sistemas Distribuídos · gRPC + API Gateway</p>
+        </div>
+      </div>
+
+      <!-- Informações de Conexão e JWT -->
+      <div class="header-actions">
+        <a href="/swagger-ui.html" target="_blank" class="btn btn-outline btn-sm" id="btn-swagger-link" title="Abrir Documentação OpenAPI">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Swagger UI
+        </a>
+
+        <!-- Status do Token JWT -->
+        <div class="jwt-badge-wrapper" id="jwt-badge-wrapper">
+          <span class="status-indicator active" id="jwt-indicator"></span>
+          <span class="jwt-label" id="jwt-label">JWT: Ativo</span>
+        </div>
+
+        <button class="btn btn-primary btn-sm" id="btn-login-modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Autenticação
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner de Apresentação / Status da Arquitetura -->
+  <section class="arch-banner">
+    <div class="arch-container">
+      <div class="arch-node">
+        <span class="node-badge">Web</span>
+        <span class="node-name">Frontend SPA</span>
+        <span class="node-meta">REST + JWT</span>
+      </div>
+      <div class="arch-arrow">➔</div>
+      <div class="arch-node gateway">
+        <span class="node-badge">Porta 8080</span>
+        <span class="node-name">API Gateway</span>
+        <span class="node-meta">Spring Boot</span>
+      </div>
+      <div class="arch-arrow">➔</div>
+      <div class="arch-node service">
+        <span class="node-badge">:9091</span>
+        <span class="node-name">AlunoService</span>
+        <span class="node-meta">gRPC + PostgreSQL</span>
+      </div>
+      <div class="arch-node service">
+        <span class="node-badge">:9092</span>
+        <span class="node-name">TreinoService</span>
+        <span class="node-meta">gRPC + PostgreSQL</span>
+      </div>
+      <div class="arch-node service">
+        <span class="node-badge">:9093</span>
+        <span class="node-name">FinanceiroService</span>
+        <span class="node-meta">gRPC + PostgreSQL</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Navegação por Abas -->
+  <nav class="nav-tabs-container">
+    <div class="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="tab-dashboard" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-tab" data-tab="tab-alunos" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Alunos
+      </button>
+      <button class="nav-tab" data-tab="tab-treinos" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg>
+        Fichas de Treino
+      </button>
+      <button class="nav-tab highlight" data-tab="tab-ia" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><circle cx="19" cy="5" r="1.5"/></svg>
+        Gerador IA ✨
+      </button>
+      <button class="nav-tab" data-tab="tab-financeiro" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Mensalidades
+      </button>
+      <button class="nav-tab" data-tab="tab-checklist" role="tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Demo Ponta a Ponta
+      </button>
+    </div>
+  </nav>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-content">
+
+    <!-- 1. ABA DASHBOARD -->
+    <section id="tab-dashboard" class="tab-pane active">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon blue">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-alunos">0</span>
+            <span class="metric-title">Alunos Registrados</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12h12"/><path d="M6 5v14"/><path d="M18 5v14"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-treinos">0</span>
+            <span class="metric-title">Fichas Cadastradas</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-pagas">0</span>
+            <span class="metric-title">Mensalidades Pagas</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon amber">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-pendentes">0</span>
+            <span class="metric-title">Pendentes / Atrasadas</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção com Atividades Recentes e Atalhos -->
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>Visão do Sistema</h3>
+            <span class="badge badge-success">Online</span>
+          </div>
+          <div class="card-body">
+            <p class="text-muted">A arquitetura distribuída conecta o navegador com o <strong>API Gateway (Spring Boot :8080)</strong>, que valida os payloads e faz chamadas RPC tipadas com <em>deadline</em> aos 3 microsserviços internos via <strong>gRPC/HTTP2</strong> com persistência real em <strong>PostgreSQL</strong>.</p>
+            <div class="gateway-status-list">
+              <div class="status-row">
+                <span>API Gateway (Borda REST + JWT)</span>
+                <span class="badge badge-primary">Porta 8080</span>
+              </div>
+              <div class="status-row">
+                <span>Microsserviço Alunos (gRPC)</span>
+                <span class="badge badge-secondary">Porta 9091</span>
+              </div>
+              <div class="status-row">
+                <span>Microsserviço Treinos (gRPC)</span>
+                <span class="badge badge-secondary">Porta 9092</span>
+              </div>
+              <div class="status-row">
+                <span>Microsserviço Financeiro (gRPC)</span>
+                <span class="badge badge-secondary">Porta 9093</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Ações Rápidas</h3>
+          </div>
+          <div class="card-body action-buttons-grid">
+            <button class="btn btn-primary" onclick="app.navegarParaAba('tab-alunos')">
+              Cadastrar Novo Aluno
+            </button>
+            <button class="btn btn-secondary" onclick="app.navegarParaAba('tab-ia')">
+              Gerar Treino com IA ✨
+            </button>
+            <button class="btn btn-secondary" onclick="app.navegarParaAba('tab-financeiro')">
+              Emitir Nova Mensalidade
+            </button>
+            <button class="btn btn-outline" onclick="app.navegarParaAba('tab-checklist')">
+              Executar Demonstração da Avaliação
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ABA ALUNOS -->
+    <section id="tab-alunos" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Formulário de Cadastro -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Cadastrar Aluno</h3>
+            <span class="badge badge-info">POST /api/cadastrar-aluno</span>
+          </div>
+          <div class="card-body">
+            <form id="form-cadastrar-aluno">
+              <div class="form-group">
+                <label for="aluno-nome">Nome Completo *</label>
+                <input type="text" id="aluno-nome" class="form-control" placeholder="Ex: Carlos Silva" required>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="aluno-cpf">CPF (Único) *</label>
+                  <input type="text" id="aluno-cpf" class="form-control" placeholder="123.456.789-00" required>
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-email">E-mail *</label>
+                  <input type="email" id="aluno-email" class="form-control" placeholder="carlos@email.com" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="aluno-telefone">Telefone</label>
+                  <input type="text" id="aluno-telefone" class="form-control" placeholder="(11) 98765-4321">
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-peso">Peso (kg)</label>
+                  <input type="number" step="0.1" id="aluno-peso" class="form-control" placeholder="80.5">
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-altura">Altura (m)</label>
+                  <input type="number" step="0.01" id="aluno-altura" class="form-control" placeholder="1.78">
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-submit-aluno">
+                  Cadastrar Aluno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Lista de Alunos -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <div>
+              <h3>Alunos Cadastrados</h3>
+              <span class="badge badge-info">GET /api/listar-alunos</span>
+            </div>
+            <button class="btn btn-sm btn-outline" id="btn-refresh-alunos">
+              Atualizar Lista
+            </button>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-responsive">
+              <table class="data-table" id="tabela-alunos">
+                <thead>
+                  <tr>
+                    <th>Nome / CPF</th>
+                    <th>Email</th>
+                    <th>Peso/Alt.</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-alunos">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Nenhum aluno carregado ainda.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ABA FICHAS DE TREINO -->
+    <section id="tab-treinos" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Criar Ficha Manual -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Criar Ficha de Treino</h3>
+            <span class="badge badge-info">POST /api/criar-ficha-treino</span>
+          </div>
+          <div class="card-body">
+            <form id="form-criar-ficha">
+              <div class="form-group">
+                <label for="treino-aluno-select">Selecione o Aluno *</label>
+                <select id="treino-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="treino-titulo">Título da Ficha *</label>
+                  <input type="text" id="treino-titulo" class="form-control" placeholder="Ex: Treino A — Peito e Tríceps" required>
+                </div>
+                <div class="form-group col">
+                  <label for="treino-objetivo">Objetivo *</label>
+                  <select id="treino-objetivo" class="form-control" required>
+                    <option value="HIPERTROFIA">HIPERTROFIA</option>
+                    <option value="EMAGRECIMENTO">EMAGRECIMENTO</option>
+                    <option value="CONDICIONAMENTO">CONDICIONAMENTO</option>
+                    <option value="FORCA">FORÇA</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Lista Dinâmica de Exercícios -->
+              <div class="exercicios-section">
+                <div class="flex-between mb-2">
+                  <label class="section-label">Exercícios da Ficha</label>
+                  <button type="button" class="btn btn-xs btn-outline" id="btn-add-exercicio">+ Adicionar Exercício</button>
+                </div>
+                <div id="exercicios-container">
+                  <!-- Linhas de exercício inseridas via JS -->
+                </div>
+              </div>
+
+              <div class="form-actions mt-3">
+                <button type="submit" class="btn btn-primary" id="btn-submit-ficha">
+                  Criar Ficha de Treino
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Visualizador de Fichas e Registro de Execução -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <div>
+              <h3>Fichas do Aluno & Execução</h3>
+              <span class="badge badge-info">GET /api/listar-fichas-aluno/{id}</span>
+            </div>
+            <select id="select-filtro-aluno-treino" class="form-control form-control-sm w-auto">
+              <option value="">Filtrar por aluno...</option>
+            </select>
+          </div>
+          <div class="card-body" id="fichas-container">
+            <p class="text-muted text-center py-4">Selecione um aluno acima para visualizar suas fichas e registrar execução de cargas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ABA GERADOR IA DE TREINOS -->
+    <section id="tab-ia" class="tab-pane">
+      <div class="card ia-card-banner">
+        <div class="card-body">
+          <div class="ia-banner-content">
+            <div class="ia-sparkle-icon">✨</div>
+            <div>
+              <h2>Assistente Inteligente de Periodização Esportiva</h2>
+              <p>Gere fichas de treino personalizadas consultando a biometria do aluno no <code>aluno-service</code> e persistindo automaticamente no <code>treino-service</code> via gRPC.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-columns-layout mt-3">
+        <!-- Formulário do Gerador IA -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Parâmetros da IA</h3>
+            <span class="badge badge-primary">POST /api/gerar-treino-ia</span>
+          </div>
+          <div class="card-body">
+            <form id="form-gerar-ia">
+              <div class="form-group">
+                <label for="ia-aluno-select">Aluno Beneficiado *</label>
+                <select id="ia-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="ia-objetivo">Objetivo Foco *</label>
+                  <select id="ia-objetivo" class="form-control" required>
+                    <option value="HIPERTROFIA">HIPERTROFIA (Ganho de Massa)</option>
+                    <option value="EMAGRECIMENTO">EMAGRECIMENTO (Perda de Gordura)</option>
+                    <option value="CONDICIONAMENTO">CONDICIONAMENTO FÍSICO</option>
+                    <option value="FORCA">FORÇA MÁXIMA</option>
+                  </select>
+                </div>
+                <div class="form-group col">
+                  <label for="ia-nivel">Nível do Praticante</label>
+                  <select id="ia-nivel" class="form-control">
+                    <option value="INICIANTE">Iniciante (Adaptação anatômica)</option>
+                    <option value="INTERMEDIARIO" selected>Intermediário</option>
+                    <option value="AVANCADO">Avançado (Sobrecarga progressiva)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="ia-foco">Grupamento / Divisão Muscular</label>
+                <input type="text" id="ia-foco" class="form-control" placeholder="Ex: Peito e Tríceps (ou Costas, Pernas, Full Body)">
+              </div>
+
+              <div class="form-group">
+                <label for="ia-observacoes">Restrições / Observações Clínicas</label>
+                <input type="text" id="ia-observacoes" class="form-control" placeholder="Ex: Evitar impacto nos joelhos, foco em lombar">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-glow" id="btn-submit-ia">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  Gerar e Salvar Ficha com IA
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Resultado do Treino Gerado -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Ficha Gerada pela IA</h3>
+            <span class="badge badge-success" id="ia-status-badge">Aguardando geração</span>
+          </div>
+          <div class="card-body" id="ia-resultado-container">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              <p>Configure os parâmetros ao lado e clique no botão para que a inteligência artificial analise o aluno e crie a ficha.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ABA FINANCEIRO -->
+    <section id="tab-financeiro" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Gerar Cobrança -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Gerar Mensalidade</h3>
+            <span class="badge badge-info">POST /api/gerar-mensalidade</span>
+          </div>
+          <div class="card-body">
+            <form id="form-gerar-mensalidade">
+              <div class="form-group">
+                <label for="fin-aluno-select">Aluno *</label>
+                <select id="fin-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="fin-valor">Valor (R$) *</label>
+                  <input type="number" step="0.01" id="fin-valor" class="form-control" value="119.90" required>
+                </div>
+                <div class="form-group col">
+                  <label for="fin-vencimento">Data de Vencimento *</label>
+                  <input type="date" id="fin-vencimento" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="fin-descricao">Descrição da Cobrança</label>
+                <input type="text" id="fin-descricao" class="form-control" placeholder="Ex: Mensalidade Outubro/2026 — Plano Silver">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-submit-mensalidade">
+                  Gerar Mensalidade
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Consulta e Pagamento -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <div>
+              <h3>Mensalidades do Aluno</h3>
+              <span class="badge badge-info">GET /api/listar-mensalidades-aluno/{id}</span>
+            </div>
+            <select id="select-filtro-aluno-fin" class="form-control form-control-sm w-auto">
+              <option value="">Filtrar por aluno...</option>
+            </select>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-responsive">
+              <table class="data-table" id="tabela-mensalidades">
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-mensalidades">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Selecione um aluno acima para listar cobranças.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. ABA DEMO / CHECKLIST DA AVALIAÇÃO -->
+    <section id="tab-checklist" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h3>Central de Demonstração da Avaliação (Checklist Trabalho 2)</h3>
+          <span class="badge badge-primary">Apresentação Oral</span>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-4">Esta seção contém botões rápidos de teste para demonstrar ao vivo todos os critérios exigidos pelo professor na folha de avaliação:</p>
+
+          <div class="demo-buttons-grid">
+            <!-- Teste 201/200 -->
+            <div class="demo-card">
+              <div class="demo-badge success">200 / 201 OK</div>
+              <h4>Caso Sucesso com JWT</h4>
+              <p>Envia requisição com token JWT válido e corpo íntegro para o Gateway.</p>
+              <button class="btn btn-sm btn-primary" onclick="app.executarDemo('201')">Testar Sucesso (201)</button>
+            </div>
+
+            <!-- Teste 401 -->
+            <div class="demo-card">
+              <div class="demo-badge danger">401 Unauthorized</div>
+              <h4>Barrado pelo Gateway (Sem JWT)</h4>
+              <p>Envia requisição sem o cabeçalho Authorization para validar o filtro Spring Security.</p>
+              <button class="btn btn-sm btn-danger" onclick="app.executarDemo('401')">Testar Sem Token (401)</button>
+            </div>
+
+            <!-- Teste 400 -->
+            <div class="demo-card">
+              <div class="demo-badge warning">400 Bad Request</div>
+              <h4>Validação Bean Validation</h4>
+              <p>Envia requisição autenticada, porém com campos vazios obrigatórios (Bean Validation).</p>
+              <button class="btn btn-sm btn-outline" onclick="app.executarDemo('400')">Testar Validação (400)</button>
+            </div>
+
+            <!-- Teste 404 -->
+            <div class="demo-card">
+              <div class="demo-badge secondary">404 Not Found</div>
+              <h4>Recurso Inexistente</h4>
+              <p>Consulta um UUID que não existe no PostgreSQL, demonstrando a tradução gRPC → HTTP.</p>
+              <button class="btn btn-sm btn-outline" onclick="app.executarDemo('404')">Testar Inexistente (404)</button>
+            </div>
+          </div>
+
+          <div class="demo-output-box mt-4">
+            <div class="flex-between mb-2">
+              <span class="text-muted">Console de Resposta HTTP do Gateway:</span>
+              <span id="demo-status-pill" class="badge badge-secondary">—</span>
+            </div>
+            <pre id="demo-console-output">Clique em qualquer botão acima para executar o teste ponta a ponta...</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal de Autenticação / Login -->
+  <div id="modal-login" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Autenticação JWT (Aula 7)</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-login')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted text-sm mb-3">Conforme a Aula 7, a API Gateway utiliza tokens assinados com o algoritmo <strong>HS256</strong> e segredo compartilhado.</p>
+
+        <form id="form-login">
+          <div class="form-group">
+            <label for="login-username">Usuário</label>
+            <input type="text" id="login-username" class="form-control" value="aluno" required>
+          </div>
+          <div class="form-group">
+            <label for="login-senha">Senha</label>
+            <input type="password" id="login-senha" class="form-control" value="123456" required>
+          </div>
+
+          <div class="flex-column gap-2 mt-3">
+            <button type="submit" class="btn btn-primary w-100" id="btn-do-login">
+              Autenticar e Salvar Token
+            </button>
+            <button type="button" class="btn btn-secondary w-100" id="btn-quick-token">
+              ⚡ Gerar Token Rápido de Laboratório
+            </button>
+            <button type="button" class="btn btn-outline-danger w-100" id="btn-clear-token">
+              Simular Sem Token (Limpar Armazenamento)
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-3">
+          <label class="text-xs text-muted">Token JWT Atual em Memória:</label>
+          <textarea id="token-textarea" class="token-textarea" readonly rows="3" placeholder="Nenhum token ativo"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Pagamento de Mensalidade -->
+  <div id="modal-pagamento" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Quitar Mensalidade</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-pagamento')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-quitar-mensalidade">
+          <input type="hidden" id="pagamento-mensalidade-id">
+          <p id="pagamento-detalhes" class="mb-3 text-muted">Mensalidade: R$ 0,00</p>
+
+          <div class="form-group">
+            <label for="pagamento-forma">Forma de Pagamento *</label>
+            <select id="pagamento-forma" class="form-control" required>
+              <option value="PIX">PIX (Instantâneo)</option>
+              <option value="CARTAO">Cartão de Crédito / Débito</option>
+              <option value="DINHEIRO">Dinheiro em Espécie</option>
+              <option value="BOLETO">Boleto Bancário</option>
+            </select>
+          </div>
+
+          <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-primary w-100">Confirmar Pagamento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
