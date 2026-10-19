@@ -33,10 +33,10 @@ public class TreinoRepositorio {
         return Optional.ofNullable(ficha);
     }
 
-    /** Lista todas as fichas de um aluno, da mais recente para a mais antiga. */
+    /** Lista todas as fichas de um aluno, da mais recente para a mais antiga, carregando os itens ansiosamente. */
     public List<FichaTreino> listarPorAluno(String alunoId) {
         TypedQuery<FichaTreino> query = em.createQuery(
-            "SELECT f FROM FichaTreino f WHERE f.alunoId = :alunoId " +
+            "SELECT DISTINCT f FROM FichaTreino f LEFT JOIN FETCH f.itens WHERE f.alunoId = :alunoId " +
             "ORDER BY f.dataCriacao DESC", FichaTreino.class);
         query.setParameter("alunoId", alunoId);
         return query.getResultList();

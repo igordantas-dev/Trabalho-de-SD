@@ -33,12 +33,12 @@ class GymApp {
     const textarea = document.getElementById('token-textarea');
 
     if (this.token) {
-      indicator.classList.add('active');
-      label.textContent = 'Sessão Ativa';
+      indicator?.classList.add('active');
+      if (label) label.textContent = 'Sessão Ativa';
       if (textarea) textarea.value = this.token;
     } else {
-      indicator.classList.remove('active');
-      label.textContent = 'Sem Sessão';
+      indicator?.classList.remove('active');
+      if (label) label.textContent = 'Sem Sessão';
       if (textarea) textarea.value = '';
     }
   }
@@ -80,7 +80,7 @@ class GymApp {
         this.mostrarToast(`Bem-vindo, ${data.usuario}!`, 'success');
         this.fecharModal('modal-login');
       } else {
-        const err = await resp.json();
+        const err = await resp.json().catch(() => ({ mensagem: 'Credenciais inválidas' }));
         this.mostrarToast(`Falha no login: ${err.mensagem || 'Credenciais inválidas'}`, 'danger');
       }
     } catch (e) {
@@ -128,6 +128,9 @@ class GymApp {
         this.atualizarSelectsAlunos();
         this.atualizarMetricasDashboard();
         this.renderizarAlunosRecentesDashboard();
+      } else {
+        const err = await resp.json().catch(() => ({ mensagem: 'Erro ao listar alunos.' }));
+        this.tratarErrosApi(err);
       }
     } catch (e) {
       console.error('Erro ao listar alunos:', e);
@@ -136,8 +139,10 @@ class GymApp {
 
   renderizarTabelaAlunos() {
     const tbody = document.getElementById('tbody-alunos');
+    if (!tbody) return;
+
     if (!this.alunos || this.alunos.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Nenhum aluno cadastrado no momento.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">Nenhum aluno cadastrado no momento. Preencha o formulário ao lado para cadastrar o primeiro aluno!</td></tr>`;
       return;
     }
 
@@ -160,9 +165,15 @@ class GymApp {
           <td>${biometria}</td>
           <td>${statusBadge}</td>
           <td>
-            <div class="flex-column gap-2">
-              <button class="btn btn-xs btn-outline" onclick="app.alternarStatusAluno('${aluno.id}', '${aluno.status}')">
-                Mudar Status
+            <div class="btn-actions-cell">
+              <button class="btn btn-xs btn-action-view" onclick="app.abrirFichasDoAluno('${aluno.id}')" title="Ver treinos e fichas deste aluno">
+                📋 Fichas
+              </button>
+              <button class="btn btn-xs btn-action-money" onclick="app.abrirMensalidadesDoAluno('${aluno.id}')" title="Ver cobranças e mensalidades deste aluno">
+                💳 Mensalidades
+              </button>
+              <button class="btn btn-xs btn-outline" onclick="app.alternarStatusAluno('${aluno.id}', '${aluno.status}')" title="Alternar status do aluno">
+                🔄 Status
               </button>
             </div>
           </td>
@@ -200,6 +211,7 @@ class GymApp {
   }
 
   async cadastrarAluno(dados) {
+    this.ocultarAlerta('alerta-erro-aluno');
     const resp = await this.apiRequest('/api/cadastrarAluno', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -207,12 +219,12 @@ class GymApp {
 
     if (resp.status === 201) {
       const aluno = await resp.json();
-      this.mostrarToast(`Aluno ${aluno.nome} cadastrado com sucesso!`, 'success');
+      this.mostrarToast(`Aluno "${aluno.nome}" cadastrado com sucesso!`, 'success');
       document.getElementById('form-cadastrar-aluno').reset();
       await this.carregarAlunos();
     } else {
-      const err = await resp.json();
-      this.tratarErrosApi(err);
+      const err = await resp.json().catch(() => ({ mensagem: 'Erro desconhecido ao cadastrar aluno' }));
+      this.tratarErrosApi(err, 'alerta-erro-aluno');
     }
   }
 
@@ -227,7 +239,7 @@ class GymApp {
       this.mostrarToast(`Status alterado para ${novoStatus}!`, 'success');
       await this.carregarAlunos();
     } else {
-      const err = await resp.json();
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao alternar status do aluno' }));
       this.tratarErrosApi(err);
     }
   }
@@ -250,6 +262,24 @@ class GymApp {
     });
   }
 
+  abrirFichasDoAluno(alunoId) {
+    this.navegarParaAba('tab-treinos');
+    const selectFiltro = document.getElementById('select-filtro-aluno-treino');
+    if (selectFiltro) selectFiltro.value = alunoId;
+    const selectCriar = document.getElementById('treino-aluno-select');
+    if (selectCriar) selectCriar.value = alunoId;
+    this.carregarFichasDoAluno(alunoId);
+  }
+
+  abrirMensalidadesDoAluno(alunoId) {
+    this.navegarParaAba('tab-financeiro');
+    const selectFiltro = document.getElementById('select-filtro-aluno-fin');
+    if (selectFiltro) selectFiltro.value = alunoId;
+    const selectGerar = document.getElementById('fin-aluno-select');
+    if (selectGerar) selectGerar.value = alunoId;
+    this.carregarMensalidadesDoAluno(alunoId);
+  }
+
   // ─── Módulo: Fichas de Treino & Execução ───────────────────────────────────
 
   adicionarExercicioLinha(nome = '', grupo = '', series = 3, reps = 12, carga = 0) {
@@ -260,17 +290,29 @@ class GymApp {
     div.className = 'exercicio-row';
     div.id = id;
     div.innerHTML = `
-      <input type="text" class="form-control col" placeholder="Exercício" value="${nome}" required data-field="nome">
-      <input type="text" class="form-control col" placeholder="Músculo" value="${grupo}" data-field="grupo">
-      <input type="number" class="form-control" style="width: 70px" placeholder="Séries" value="${series}" required data-field="series">
-      <input type="number" class="form-control" style="width: 70px" placeholder="Reps" value="${reps}" required data-field="reps">
-      <input type="number" step="0.5" class="form-control" style="width: 80px" placeholder="Kg" value="${carga}" data-field="carga">
-      <button type="button" class="btn btn-xs btn-outline-danger" onclick="document.getElementById('${id}').remove()">✕</button>
+      <input type="text" class="form-control" placeholder="Exercício (ex: Supino)"
+             value="${nome}" required data-field="nome">
+      <input type="text" class="form-control" placeholder="Grupo (ex: Peito)"
+             value="${grupo}" data-field="grupo">
+      <input type="number" class="form-control" placeholder="Séries"
+             value="${series}" min="1" required data-field="series">
+      <input type="number" class="form-control" placeholder="Reps"
+             value="${reps}" min="1" required data-field="reps">
+      <input type="number" step="0.5" class="form-control" placeholder="Sugerido (kg)"
+             value="${carga}" min="0" data-field="carga">
+      <button type="button" class="btn btn-xs btn-danger btn-remove-row" onclick="document.getElementById('${id}').remove()">✕</button>
     `;
     container.appendChild(div);
   }
 
   async criarFichaTreino(dados) {
+    this.ocultarAlerta('alerta-erro-ficha');
+    if (!dados.alunoId) {
+      this.mostrarAlerta('alerta-erro-ficha', 'Selecione um aluno para vincular a ficha de treino.');
+      this.mostrarToast('Selecione um aluno para vincular a ficha.', 'warning');
+      return;
+    }
+
     const resp = await this.apiRequest('/api/criarFichaTreino', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -280,43 +322,77 @@ class GymApp {
       const ficha = await resp.json();
       this.mostrarToast(`Ficha "${ficha.titulo}" criada com sucesso!`, 'success');
       document.getElementById('form-criar-ficha').reset();
-      // Limpa o container de exercícios e adiciona um padrão
       document.getElementById('exercicios-container').innerHTML = '';
       this.adicionarExercicioLinha();
 
       // Seleciona o aluno no filtro lateral e carrega as fichas automaticamente
       const selectFiltro = document.getElementById('select-filtro-aluno-treino');
-      selectFiltro.value = dados.alunoId;
+      if (selectFiltro) selectFiltro.value = dados.alunoId;
       await this.carregarFichasDoAluno(dados.alunoId);
     } else {
-      const err = await resp.json();
-      this.tratarErrosApi(err);
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao criar ficha de treino' }));
+      this.tratarErrosApi(err, 'alerta-erro-ficha');
     }
   }
 
   async carregarFichasDoAluno(alunoId) {
     const container = document.getElementById('fichas-container');
+    if (!container) return;
+
     if (!alunoId) {
-      container.innerHTML = '<p class="text-muted text-center py-4">Selecione um aluno acima para ver suas fichas.</p>';
+      container.innerHTML = '<p class="text-muted text-center py-4">Selecione um aluno acima para ver suas fichas e registrar execuções.</p>';
       return;
     }
 
-    container.innerHTML = '<p class="text-muted text-center py-4">Carregando fichas...</p>';
+    container.innerHTML = '<p class="text-muted text-center py-4">⏳ Carregando fichas do aluno...</p>';
 
     try {
       const resp = await this.apiRequest(`/api/listarFichasAluno/${alunoId}`);
       if (resp.ok) {
         const fichas = await resp.json();
-        this.renderizarFichas(fichas, container);
+        this.renderizarFichas(fichas, container, alunoId);
+      } else {
+        const err = await resp.json().catch(() => ({ mensagem: 'Falha ao buscar fichas de treino.' }));
+        this.tratarErrosApi(err);
+        container.innerHTML = `
+          <div class="alert alert-danger mt-3">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-content">
+              <strong>Não foi possível carregar as fichas</strong>
+              <p>${err.mensagem || 'Erro na resposta do servidor'}</p>
+              ${err.codigo ? `<small class="text-muted">Código: ${err.codigo}</small>` : ''}
+              <div class="mt-2">
+                <button class="btn btn-xs btn-outline" onclick="app.carregarFichasDoAluno('${alunoId}')">Tentar Novamente</button>
+              </div>
+            </div>
+          </div>
+        `;
       }
     } catch (e) {
-      container.innerHTML = '<p class="text-danger text-center py-4">Erro ao carregar fichas.</p>';
+      container.innerHTML = `
+        <div class="alert alert-danger mt-3">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-content">
+            <strong>Falha de conexão</strong>
+            <p>Não foi possível conectar ao API Gateway: ${e.message}</p>
+            <div class="mt-2">
+              <button class="btn btn-xs btn-outline" onclick="app.carregarFichasDoAluno('${alunoId}')">Tentar Novamente</button>
+            </div>
+          </div>
+        </div>
+      `;
     }
   }
 
-  renderizarFichas(fichas, container) {
+  renderizarFichas(fichas, container, alunoId) {
     if (!fichas || fichas.length === 0) {
-      container.innerHTML = '<p class="text-muted text-center py-4">Nenhuma ficha encontrada para este aluno.</p>';
+      container.innerHTML = `
+        <div class="text-center py-5">
+          <p class="text-muted mb-2">Nenhuma ficha encontrada para este aluno.</p>
+          <small class="text-muted d-block mb-3">Crie uma ficha personalizada no formulário ao lado ou use o Assistente IA ✨</small>
+          <button class="btn btn-xs btn-primary" onclick="app.navegarParaAba('tab-ia')">Ir para Gerador IA ✨</button>
+        </div>
+      `;
       return;
     }
 
@@ -359,10 +435,10 @@ class GymApp {
             </div>
             ${itensHtml}
           </div>
-          <div class="flex-between">
-            <small class="text-muted">${f.dataConclusao ? 'Concluído em: ' + f.dataConclusao : 'Aguardando execução'}</small>
-            <button class="btn btn-sm btn-primary" onclick="app.registrarExecucao('${f.id}')">
-              Salvar Cargas & Concluir
+          <div class="card-footer-actions flex-between">
+            <small class="text-muted">${f.dataConclusao ? 'Concluído em: ' + f.dataConclusao : 'Pendente de execução'}</small>
+            <button class="btn btn-sm btn-primary" onclick="app.salvarExecucao('${f.id}')">
+              Salvar Execução
             </button>
           </div>
         </div>
@@ -370,19 +446,17 @@ class GymApp {
     }).join('');
   }
 
-  async registrarExecucao(fichaId) {
+  async salvarExecucao(fichaId) {
     const card = document.getElementById(`card-ficha-${fichaId}`);
     if (!card) return;
 
-    const itensDivs = card.querySelectorAll('.exercicio-item-card');
     const itens = [];
-
-    itensDivs.forEach(div => {
-      const itemId = div.dataset.itemId;
-      const cargaUsada = parseFloat(div.querySelector('.input-carga-real').value) || 0.0;
-      const concluido = div.querySelector('.chk-concluido').checked;
-
-      itens.push({ itemId, cargaUsada, concluido });
+    card.querySelectorAll('.exercicio-item-card').forEach(el => {
+      itens.push({
+        itemId: el.dataset.itemId,
+        cargaUsada: parseFloat(el.querySelector('.input-carga-real').value) || 0,
+        concluido: el.querySelector('.chk-concluido').checked
+      });
     });
 
     const resp = await this.apiRequest(`/api/registrarExecucaoTreino/${fichaId}`, {
@@ -391,32 +465,31 @@ class GymApp {
     });
 
     if (resp.ok) {
-      this.mostrarToast(`Execução registrada! Cargas salvas com sucesso.`, 'success');
+      const fichaAtualizada = await resp.json();
+      this.mostrarToast('Execução do treino registrada! Cargas reais salvas.', 'success');
       const alunoId = document.getElementById('select-filtro-aluno-treino').value;
-      await this.carregarFichasDoAluno(alunoId);
+      if (alunoId) await this.carregarFichasDoAluno(alunoId);
     } else {
-      const err = await resp.json();
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao salvar execução do treino' }));
       this.tratarErrosApi(err);
     }
   }
 
-  // ─── Módulo: Assistente IA ───────────────────────────────────────────────
+  // ─── Módulo: Assistente IA ✨ ──────────────────────────────────────────────
 
   async gerarTreinoComIa(dados) {
-    const badge = document.getElementById('ia-status-badge');
-    const resultado = document.getElementById('ia-resultado-container');
+    this.ocultarAlerta('alerta-erro-ia');
+    if (!dados.alunoId) {
+      this.mostrarAlerta('alerta-erro-ia', 'Selecione um aluno para gerar o treino.');
+      this.mostrarToast('Selecione um aluno para gerar o treino.', 'warning');
+      return;
+    }
+
     const btn = document.getElementById('btn-submit-ia');
-
-    badge.className = 'badge badge-warning';
-    badge.textContent = 'Gerando...';
+    const container = document.getElementById('ia-resultado-container');
     btn.disabled = true;
-
-    resultado.innerHTML = `
-      <div class="text-center py-4">
-        <div style="font-size: 2rem; animation: pulse 1s infinite;">✨</div>
-        <p class="text-muted mt-2">Analisando perfil do aluno e montando os exercícios...</p>
-      </div>
-    `;
+    btn.textContent = 'Gerando treino com IA...';
+    container.innerHTML = '<p class="text-center py-5">⏳ Consultando biometria e sintetizando plano de treino personalizado...</p>';
 
     try {
       const resp = await this.apiRequest('/api/gerarTreinoIa', {
@@ -426,58 +499,62 @@ class GymApp {
 
       if (resp.ok) {
         const ficha = await resp.json();
-        badge.className = 'badge badge-success';
-        badge.textContent = 'Salvo com Sucesso';
-        this.mostrarToast(`Treino "${ficha.titulo}" gerado e salvo!`, 'success');
-
-        resultado.innerHTML = `
-          <div class="ficha-card" style="border-color: rgba(236, 72, 153, 0.4);">
-            <div class="ficha-header">
-              <div>
-                <strong style="color: #f472b6;">${ficha.titulo}</strong>
-                <small class="text-muted d-block">Objetivo: ${ficha.objetivo}</small>
-              </div>
-              <span class="badge badge-success">Salvo</span>
-            </div>
-            <div class="exercicios-list mt-2">
-              ${ficha.itens.map(i => `
-                <div class="exercicio-item-card" style="grid-template-columns: 2fr 1fr 1fr;">
-                  <div>
-                    <strong>${i.nomeExercicio}</strong>
-                    <small class="text-muted d-block">${i.grupoMuscular}</small>
-                  </div>
-                  <div>${i.series} séries de ${i.repeticoes} reps</div>
-                  <div><strong>${i.cargaSugerida} kg</strong> sugeridos</div>
-                </div>
-              `).join('')}
-            </div>
-            <div class="mt-3 text-center">
-              <button class="btn btn-sm btn-outline" onclick="
-                app.navegarParaAba('tab-treinos');
-                document.getElementById('select-filtro-aluno-treino').value = '${dados.alunoId}';
-                app.carregarFichasDoAluno('${dados.alunoId}');
-              ">
-                Ver na Aba de Fichas →
-              </button>
-            </div>
-          </div>
-        `;
-
-        await this.carregarAlunos();
+        this.mostrarToast('Treino gerado pela IA e salvo no banco de dados!', 'success');
+        this.renderizarResultadoIa(ficha, container, dados.alunoId);
       } else {
-        const err = await resp.json();
-        badge.className = 'badge badge-danger';
-        badge.textContent = 'Falha';
-        this.tratarErrosApi(err);
+        const err = await resp.json().catch(() => ({ mensagem: 'Falha na geração com IA' }));
+        this.tratarErrosApi(err, 'alerta-erro-ia');
+        container.innerHTML = `<div class="alert alert-danger mt-3">⚠️ ${err.mensagem || 'Falha ao gerar treino.'}</div>`;
       }
+    } catch (e) {
+      container.innerHTML = `<div class="alert alert-danger mt-3">❌ Erro de comunicação: ${e.message}</div>`;
     } finally {
       btn.disabled = false;
+      btn.textContent = 'Gerar Treino com IA ✨';
     }
   }
 
-  // ─── Módulo: Financeiro (Mensalidades) ────────────────────────────────────
+  renderizarResultadoIa(ficha, container, alunoId) {
+    const itensHtml = ficha.itens.map(i => `
+      <div class="exercicio-item-card" style="margin-bottom:0.4rem;">
+        <div><strong>${i.nomeExercicio}</strong> <small class="text-muted">(${i.grupoMuscular || 'Geral'})</small></div>
+        <div>${i.series} séries x ${i.repeticoes} reps</div>
+        <div><strong>${i.cargaSugerida} kg</strong> (sugerido)</div>
+      </div>
+    `).join('');
+
+    container.innerHTML = `
+      <div class="ficha-card" style="border-color: rgba(99, 102, 241, 0.4);">
+        <div class="ficha-header">
+          <div>
+            <strong style="color:var(--accent-glow);">${ficha.titulo}</strong>
+            <small class="text-muted d-block">Objetivo: ${ficha.objetivo} · Gerado com IA</small>
+          </div>
+          <span class="badge badge-success">Salvo no Banco</span>
+        </div>
+        <div class="exercicios-list mb-3">
+          ${itensHtml}
+        </div>
+        <div class="card-footer-actions flex-between">
+          <small class="text-muted">Esta ficha já está salva e disponível na aba Treinos.</small>
+          <button class="btn btn-sm btn-primary" onclick="app.abrirFichasDoAluno('${alunoId}')">
+            Ver na Aba de Fichas →
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ─── Módulo: Financeiro ───────────────────────────────────────────────────
 
   async gerarMensalidade(dados) {
+    this.ocultarAlerta('alerta-erro-mensalidade');
+    if (!dados.alunoId) {
+      this.mostrarAlerta('alerta-erro-mensalidade', 'Selecione um aluno para gerar a mensalidade.');
+      this.mostrarToast('Selecione um aluno para gerar a mensalidade.', 'warning');
+      return;
+    }
+
     const resp = await this.apiRequest('/api/gerarMensalidade', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -485,37 +562,73 @@ class GymApp {
 
     if (resp.status === 201) {
       const mensalidade = await resp.json();
-      this.mostrarToast(`Mensalidade de R$ ${mensalidade.valor.toFixed(2)} gerada!`, 'success');
+      this.mostrarToast(`Mensalidade de R$ ${mensalidade.valor.toFixed(2)} gerada com sucesso!`, 'success');
       document.getElementById('form-gerar-mensalidade').reset();
-      document.getElementById('select-filtro-aluno-fin').value = dados.alunoId;
+      const selectFiltro = document.getElementById('select-filtro-aluno-fin');
+      if (selectFiltro) selectFiltro.value = dados.alunoId;
       await this.carregarMensalidadesDoAluno(dados.alunoId);
     } else {
-      const err = await resp.json();
-      this.tratarErrosApi(err);
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao gerar mensalidade' }));
+      this.tratarErrosApi(err, 'alerta-erro-mensalidade');
     }
   }
 
   async carregarMensalidadesDoAluno(alunoId) {
     const tbody = document.getElementById('tbody-mensalidades');
+    if (!tbody) return;
+
     if (!alunoId) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Selecione um aluno acima.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Selecione um aluno acima para listar cobranças.</td></tr>';
       return;
     }
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">⏳ Carregando mensalidades do aluno...</td></tr>';
 
     try {
       const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${alunoId}`);
       if (resp.ok) {
         const lista = await resp.json();
-        this.renderizarMensalidades(lista, tbody);
+        this.renderizarMensalidades(lista, tbody, alunoId);
+      } else {
+        const err = await resp.json().catch(() => ({ mensagem: 'Falha ao buscar mensalidades.' }));
+        this.tratarErrosApi(err);
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-4">
+              <div class="alert alert-danger m-0 d-inline-flex">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content text-left">
+                  <strong>Erro ao carregar mensalidades</strong>
+                  <p class="m-0">${err.mensagem || 'Falha na resposta do servidor'}</p>
+                  <button class="btn btn-xs btn-outline mt-2" onclick="app.carregarMensalidadesDoAluno('${alunoId}')">Tentar Novamente</button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
       }
     } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Erro ao carregar mensalidades.</td></tr>';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-4 text-danger">
+            ⚠️ Erro de conexão: ${e.message}
+            <br><button class="btn btn-xs btn-outline mt-2" onclick="app.carregarMensalidadesDoAluno('${alunoId}')">Tentar Novamente</button>
+          </td>
+        </tr>
+      `;
     }
   }
 
-  renderizarMensalidades(mensalidades, tbody) {
+  renderizarMensalidades(mensalidades, tbody, alunoId) {
     if (!mensalidades || mensalidades.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Nenhuma cobrança registrada para este aluno.</td></tr>';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-5">
+            <p class="text-muted mb-2">Nenhuma cobrança registrada para este aluno.</p>
+            <small class="text-muted">Utilize o formulário ao lado para emitir uma nova mensalidade.</small>
+          </td>
+        </tr>
+      `;
       return;
     }
 
@@ -527,7 +640,7 @@ class GymApp {
           : '<span class="badge badge-warning">Pendente</span>';
 
       const botaoAcao = m.status !== 'PAGO'
-        ? `<button class="btn btn-xs btn-primary" onclick="app.abrirModalPagamento('${m.id}', ${m.valor})">Pagar</button>`
+        ? `<button class="btn btn-xs btn-primary" onclick="app.abrirModalPagamento('${m.id}', ${m.valor})">Quitar Pagamento</button>`
         : `<small class="text-muted">via ${m.formaPagamento || 'PIX'}</small>`;
 
       return `
@@ -555,27 +668,30 @@ class GymApp {
     });
 
     if (resp.ok) {
-      this.mostrarToast(`Pagamento via ${formaPagamento} registrado!`, 'success');
+      this.mostrarToast(`Pagamento registrado com sucesso via ${formaPagamento}!`, 'success');
       this.fecharModal('modal-pagamento');
       const alunoId = document.getElementById('select-filtro-aluno-fin').value;
-      await this.carregarMensalidadesDoAluno(alunoId);
-      await this.carregarAlunos();
+      if (alunoId) await this.carregarMensalidadesDoAluno(alunoId);
     } else {
-      const err = await resp.json();
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao registrar pagamento' }));
       this.tratarErrosApi(err);
     }
   }
 
-  // ─── Dashboard & Métricas ─────────────────────────────────────────────────
+  // ─── Dashboard ────────────────────────────────────────────────────────────
 
   atualizarMetricasDashboard() {
-    const totalAlunos = this.alunos.length;
+    const total = this.alunos.length;
     const ativos = this.alunos.filter(a => a.status === 'ATIVO').length;
     const inadimplentes = this.alunos.filter(a => a.status === 'INADIMPLENTE').length;
 
-    document.getElementById('dash-total-alunos').textContent = totalAlunos;
-    document.getElementById('dash-alunos-ativos').textContent = ativos;
-    document.getElementById('dash-inadimplentes').textContent = inadimplentes;
+    const elTotal = document.getElementById('metric-total-alunos');
+    const elAtivos = document.getElementById('metric-alunos-ativos');
+    const elInadimp = document.getElementById('metric-inadimplentes');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elAtivos) elAtivos.textContent = ativos;
+    if (elInadimp) elInadimp.textContent = inadimplentes;
   }
 
   // ─── UI Helpers ───────────────────────────────────────────────────────────
@@ -597,8 +713,9 @@ class GymApp {
     document.getElementById(modalId)?.classList.remove('open');
   }
 
-  mostrarToast(mensagem, tipo = 'info') {
+  mostrarToast(mensagem, tipo = 'info', duracao = 6000) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${tipo}`;
     toast.textContent = mensagem;
@@ -607,15 +724,54 @@ class GymApp {
     setTimeout(() => {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    }, duracao);
   }
 
-  tratarErrosApi(err) {
-    if (err.erros) {
-      const campos = Object.entries(err.erros).map(([campo, msg]) => `${campo}: ${msg}`).join('; ');
-      this.mostrarToast(`Dados inválidos: ${campos}`, 'warning');
+  mostrarAlerta(elementId, mensagem, listaErros = null, tipo = 'danger') {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.className = `alert alert-${tipo}`;
+
+    let html = `<span class="alert-icon">${tipo === 'success' ? '✅' : tipo === 'warning' ? '⚠️' : '❌'}</span>`;
+    html += `<div class="alert-content">`;
+    html += `<strong>${mensagem}</strong>`;
+
+    if (listaErros && Object.keys(listaErros).length > 0) {
+      html += '<ul>';
+      for (const [campo, desc] of Object.entries(listaErros)) {
+        html += `<li><strong>${campo}:</strong> ${desc}</li>`;
+      }
+      html += '</ul>';
+    }
+
+    html += `</div>`;
+    el.innerHTML = html;
+    el.classList.remove('d-none');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  ocultarAlerta(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) {
+      el.classList.add('d-none');
+      el.innerHTML = '';
+    }
+  }
+
+  tratarErrosApi(err, containerAlertaId = null) {
+    let tituloToast = err.mensagem || 'Ocorreu um erro na operação.';
+    if (err.erros && Object.keys(err.erros).length > 0) {
+      const campos = Object.entries(err.erros).map(([c, m]) => `${c}: ${m}`).join(' | ');
+      tituloToast = `Dados inválidos: ${campos}`;
+      if (containerAlertaId) {
+        this.mostrarAlerta(containerAlertaId, err.mensagem || 'Corrija os erros abaixo para prosseguir:', err.erros, 'danger');
+      }
+      this.mostrarToast(tituloToast, 'warning', 7000);
     } else {
-      this.mostrarToast(err.mensagem || 'Ocorreu um erro.', 'danger');
+      if (containerAlertaId) {
+        this.mostrarAlerta(containerAlertaId, err.mensagem || 'Falha ao processar a requisição.', null, 'danger');
+      }
+      this.mostrarToast(tituloToast, 'danger', 6000);
     }
   }
 
@@ -626,22 +782,22 @@ class GymApp {
     });
 
     // Modal de Login
-    document.getElementById('btn-login-modal').addEventListener('click', () => {
+    document.getElementById('btn-login-modal')?.addEventListener('click', () => {
       this.abrirModal('modal-login');
     });
 
-    document.getElementById('btn-quick-token').addEventListener('click', async () => {
+    document.getElementById('btn-quick-token')?.addEventListener('click', async () => {
       await this.obterTokenRapido();
       this.fecharModal('modal-login');
     });
 
-    document.getElementById('btn-clear-token').addEventListener('click', () => {
+    document.getElementById('btn-clear-token')?.addEventListener('click', () => {
       this.setToken(null);
       this.mostrarToast('Sessão encerrada. Faça login para continuar.', 'warning');
       this.fecharModal('modal-login');
     });
 
-    document.getElementById('form-login').addEventListener('submit', (e) => {
+    document.getElementById('form-login')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const user = document.getElementById('login-username').value;
       const pass = document.getElementById('login-senha').value;
@@ -649,40 +805,40 @@ class GymApp {
     });
 
     // Form Aluno
-    document.getElementById('form-cadastrar-aluno').addEventListener('submit', (e) => {
+    document.getElementById('form-cadastrar-aluno')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const dados = {
-        nome: document.getElementById('aluno-nome').value,
-        cpf: document.getElementById('aluno-cpf').value,
-        email: document.getElementById('aluno-email').value,
-        telefone: document.getElementById('aluno-telefone').value || null,
+        nome: document.getElementById('aluno-nome').value.trim(),
+        cpf: document.getElementById('aluno-cpf').value.trim(),
+        email: document.getElementById('aluno-email').value.trim(),
+        telefone: document.getElementById('aluno-telefone').value.trim() || null,
         peso: parseFloat(document.getElementById('aluno-peso').value) || null,
         altura: parseFloat(document.getElementById('aluno-altura').value) || null
       };
       this.cadastrarAluno(dados);
     });
 
-    document.getElementById('btn-refresh-alunos').addEventListener('click', () => {
+    document.getElementById('btn-refresh-alunos')?.addEventListener('click', () => {
       this.carregarAlunos();
-      this.mostrarToast('Lista atualizada.', 'info');
+      this.mostrarToast('Lista de alunos atualizada.', 'info');
     });
 
     // Form Ficha Manual
-    document.getElementById('btn-add-exercicio').addEventListener('click', () => {
+    document.getElementById('btn-add-exercicio')?.addEventListener('click', () => {
       this.adicionarExercicioLinha();
     });
 
-    document.getElementById('form-criar-ficha').addEventListener('submit', (e) => {
+    document.getElementById('form-criar-ficha')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const alunoId = document.getElementById('treino-aluno-select').value;
-      const titulo = document.getElementById('treino-titulo').value;
-      const objetivo = document.getElementById('treino-objetivo').value;
+      const titulo = document.getElementById('treino-titulo').value.trim();
+      const objetivo = document.getElementById('treino-objetivo').value.trim();
 
       const itens = [];
       document.querySelectorAll('#exercicios-container .exercicio-row').forEach(row => {
         itens.push({
-          nomeExercicio: row.querySelector('[data-field="nome"]').value,
-          grupoMuscular: row.querySelector('[data-field="grupo"]').value,
+          nomeExercicio: row.querySelector('[data-field="nome"]').value.trim(),
+          grupoMuscular: row.querySelector('[data-field="grupo"]').value.trim(),
           series: parseInt(row.querySelector('[data-field="series"]').value) || 3,
           repeticoes: parseInt(row.querySelector('[data-field="reps"]').value) || 10,
           cargaSugerida: parseFloat(row.querySelector('[data-field="carga"]').value) || 0
@@ -692,41 +848,61 @@ class GymApp {
       this.criarFichaTreino({ alunoId, titulo, objetivo, itens });
     });
 
-    document.getElementById('select-filtro-aluno-treino').addEventListener('change', (e) => {
+    document.getElementById('select-filtro-aluno-treino')?.addEventListener('change', (e) => {
       this.carregarFichasDoAluno(e.target.value);
     });
 
+    document.getElementById('btn-refresh-fichas')?.addEventListener('click', () => {
+      const alunoId = document.getElementById('select-filtro-aluno-treino')?.value;
+      if (alunoId) {
+        this.carregarFichasDoAluno(alunoId);
+        this.mostrarToast('Fichas de treino atualizadas.', 'info');
+      } else {
+        this.mostrarToast('Selecione um aluno para recarregar suas fichas.', 'warning');
+      }
+    });
+
     // Form Gerador IA
-    document.getElementById('form-gerar-ia').addEventListener('submit', (e) => {
+    document.getElementById('form-gerar-ia')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const dados = {
         alunoId: document.getElementById('ia-aluno-select').value,
         objetivo: document.getElementById('ia-objetivo').value,
         nivel: document.getElementById('ia-nivel').value,
-        focoMuscular: document.getElementById('ia-foco').value || null,
-        observacoes: document.getElementById('ia-observacoes').value || null
+        focoMuscular: document.getElementById('ia-foco').value.trim() || null,
+        observacoes: document.getElementById('ia-observacoes').value.trim() || null
       };
       this.gerarTreinoComIa(dados);
     });
 
     // Form Mensalidade
-    document.getElementById('form-gerar-mensalidade').addEventListener('submit', (e) => {
+    document.getElementById('form-gerar-mensalidade')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const dados = {
         alunoId: document.getElementById('fin-aluno-select').value,
         valor: parseFloat(document.getElementById('fin-valor').value) || 0,
         dataVencimento: document.getElementById('fin-vencimento').value,
-        descricao: document.getElementById('fin-descricao').value || null
+        descricao: document.getElementById('fin-descricao').value.trim() || null
       };
       this.gerarMensalidade(dados);
     });
 
-    document.getElementById('select-filtro-aluno-fin').addEventListener('change', (e) => {
+    document.getElementById('select-filtro-aluno-fin')?.addEventListener('change', (e) => {
       this.carregarMensalidadesDoAluno(e.target.value);
     });
 
+    document.getElementById('btn-refresh-fin')?.addEventListener('click', () => {
+      const alunoId = document.getElementById('select-filtro-aluno-fin')?.value;
+      if (alunoId) {
+        this.carregarMensalidadesDoAluno(alunoId);
+        this.mostrarToast('Mensalidades atualizadas.', 'info');
+      } else {
+        this.mostrarToast('Selecione um aluno para recarregar suas mensalidades.', 'warning');
+      }
+    });
+
     // Form Pagamento
-    document.getElementById('form-quitar-mensalidade').addEventListener('submit', (e) => {
+    document.getElementById('form-quitar-mensalidade')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const id = document.getElementById('pagamento-mensalidade-id').value;
       const forma = document.getElementById('pagamento-forma').value;

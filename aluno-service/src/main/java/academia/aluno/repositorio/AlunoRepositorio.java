@@ -41,14 +41,38 @@ public class AlunoRepositorio {
 
     /**
      * Busca um aluno pelo CPF. Utilizado para verificar duplicidade no cadastro.
+     * Compara tanto o formato exato quanto os números sem pontuação.
      */
     public Optional<Aluno> buscarPorCpf(String cpf) {
+        if (cpf == null || cpf.isBlank()) return Optional.empty();
+        String cpfLimpo = cpf.trim();
+        String apenasNumeros = cpfLimpo.replaceAll("\\D", "");
         try {
             TypedQuery<Aluno> query = em.createQuery(
-                "SELECT a FROM Aluno a WHERE a.cpf = :cpf", Aluno.class);
-            query.setParameter("cpf", cpf);
-            return Optional.of(query.getSingleResult());
-        } catch (NoResultException e) {
+                "SELECT a FROM Aluno a WHERE a.cpf = :cpf OR REPLACE(REPLACE(REPLACE(a.cpf, '.', ''), '-', ''), ' ', '') = :numeros",
+                Aluno.class);
+            query.setParameter("cpf", cpfLimpo);
+            query.setParameter("numeros", apenasNumeros.isBlank() ? cpfLimpo : apenasNumeros);
+            List<Aluno> lista = query.getResultList();
+            return lista.isEmpty() ? Optional.empty() : Optional.of(lista.get(0));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Busca um aluno pelo e-mail (case-insensitive).
+     * Utilizado para verificar duplicidade no cadastro.
+     */
+    public Optional<Aluno> buscarPorEmail(String email) {
+        if (email == null || email.isBlank()) return Optional.empty();
+        try {
+            TypedQuery<Aluno> query = em.createQuery(
+                "SELECT a FROM Aluno a WHERE LOWER(a.email) = LOWER(:email)", Aluno.class);
+            query.setParameter("email", email.trim());
+            List<Aluno> lista = query.getResultList();
+            return lista.isEmpty() ? Optional.empty() : Optional.of(lista.get(0));
+        } catch (Exception e) {
             return Optional.empty();
         }
     }

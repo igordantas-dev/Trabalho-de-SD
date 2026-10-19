@@ -180,6 +180,7 @@
             <h3>Cadastrar Aluno</h3>
           </div>
           <div class="card-body">
+            <div id="alerta-erro-aluno" class="alert alert-danger d-none"></div>
             <form id="form-cadastrar-aluno">
               <div class="form-group">
                 <label for="aluno-nome">Nome Completo *</label>
@@ -262,6 +263,7 @@
             <h3>Nova Ficha de Treino</h3>
           </div>
           <div class="card-body">
+            <div id="alerta-erro-ficha" class="alert alert-danger d-none"></div>
             <form id="form-criar-ficha">
               <div class="form-group">
                 <label for="treino-aluno-select">Aluno *</label>
@@ -310,9 +312,12 @@
         <div class="card">
           <div class="card-header flex-between">
             <h3>Fichas do Aluno</h3>
-            <select id="select-filtro-aluno-treino" class="form-control form-control-sm w-auto">
-              <option value="">Selecionar aluno...</option>
-            </select>
+            <div class="flex gap-2 align-center">
+              <select id="select-filtro-aluno-treino" class="form-control form-control-sm w-auto">
+                <option value="">Selecionar aluno...</option>
+              </select>
+              <button class="btn btn-xs btn-outline" id="btn-refresh-fichas" type="button" title="Recarregar fichas">🔄 Recarregar</button>
+            </div>
           </div>
           <div class="card-body" id="fichas-container">
             <p class="text-muted text-center py-4">Selecione um aluno para visualizar suas fichas e registrar a execução das cargas.</p>
@@ -342,6 +347,7 @@
             <h3>Configurar Geração</h3>
           </div>
           <div class="card-body">
+            <div id="alerta-erro-ia" class="alert alert-danger d-none"></div>
             <form id="form-gerar-ia">
               <div class="form-group">
                 <label for="ia-aluno-select">Aluno *</label>
@@ -415,6 +421,7 @@
             <h3>Gerar Mensalidade</h3>
           </div>
           <div class="card-body">
+            <div id="alerta-erro-mensalidade" class="alert alert-danger d-none"></div>
             <form id="form-gerar-mensalidade">
               <div class="form-group">
                 <label for="fin-aluno-select">Aluno *</label>
@@ -452,9 +459,12 @@
         <div class="card">
           <div class="card-header flex-between">
             <h3>Mensalidades do Aluno</h3>
-            <select id="select-filtro-aluno-fin" class="form-control form-control-sm w-auto">
-              <option value="">Selecionar aluno...</option>
-            </select>
+            <div class="flex gap-2 align-center">
+              <select id="select-filtro-aluno-fin" class="form-control form-control-sm w-auto">
+                <option value="">Selecionar aluno...</option>
+              </select>
+              <button class="btn btn-xs btn-outline" id="btn-refresh-fin" type="button" title="Recarregar cobranças">🔄 Recarregar</button>
+            </div>
           </div>
           <div class="card-body no-padding">
             <div class="table-responsive">

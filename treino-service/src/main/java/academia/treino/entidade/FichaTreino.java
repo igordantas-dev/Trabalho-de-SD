@@ -36,7 +36,7 @@ public class FichaTreino {
     /**
      * Objetivo do treino: HIPERTROFIA | EMAGRECIMENTO | CONDICIONAMENTO
      */
-    @Column(name = "objetivo", nullable = false, length = 30)
+    @Column(name = "objetivo", nullable = false, length = 100)
     private String objetivo;
 
     /**

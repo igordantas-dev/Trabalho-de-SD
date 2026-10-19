@@ -39,10 +39,8 @@ public class ServidorFinanceiroGrpc {
 
         EntityManagerFactory emf = Persistence.createEntityManagerFactory(
             "financeiro-pu", jpaProps);
-        EntityManager em = emf.createEntityManager();
-
         Server server = ServerBuilder.forPort(PORTA)
-                .addService(new FinanceiroServiceImpl(em))
+                .addService(new FinanceiroServiceImpl(emf))
                 .build();
 
         server.start();
@@ -51,7 +49,6 @@ public class ServidorFinanceiroGrpc {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("[FinanceiroService] Encerrando servidor...");
             server.shutdown();
-            em.close();
             emf.close();
         }));
 

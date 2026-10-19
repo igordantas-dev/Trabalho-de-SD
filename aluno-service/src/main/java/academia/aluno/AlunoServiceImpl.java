@@ -6,6 +6,7 @@ import academia.grpc.*;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
 
 import java.util.List;
@@ -14,17 +15,40 @@ import java.util.UUID;
 
 /**
  * Implementação do serviço gRPC AlunoService.
- * Recebe as chamadas remotas do API Gateway, persiste e consulta dados
- * no PostgreSQL via JPA/Hibernate.
+ * Recebe chamadas do API Gateway e gerencia dados de alunos no PostgreSQL.
+ * Suporta isolamento de transação por chamada via EntityManagerFactory.
  */
 public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
 
-    private final EntityManager em;
-    private final AlunoRepositorio repositorio;
+    private final EntityManagerFactory emf;
+    private final EntityManager singleEm;
+
+    public AlunoServiceImpl(EntityManagerFactory emf) {
+        this.emf = emf;
+        this.singleEm = null;
+    }
 
     public AlunoServiceImpl(EntityManager em) {
-        this.em          = em;
-        this.repositorio = new AlunoRepositorio(em);
+        this.emf = null;
+        this.singleEm = em;
+    }
+
+    private EntityManager createEntityManager() {
+        return emf != null ? emf.createEntityManager() : singleEm;
+    }
+
+    private void closeEntityManager(EntityManager em) {
+        if (emf != null && em != null && em.isOpen()) {
+            em.close();
+        }
+    }
+
+    private Throwable getRootCause(Throwable t) {
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root;
     }
 
     // ─── CadastrarAluno ───────────────────────────────────────────────────
@@ -32,45 +56,100 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
     @Override
     public void cadastrarAluno(CadastrarAlunoRequest request,
                                StreamObserver<AlunoResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        AlunoRepositorio repositorio = new AlunoRepositorio(em);
         EntityTransaction tx = em.getTransaction();
+
+        String cpfLimpo = request.getCpf() != null ? request.getCpf().trim() : "";
+        String emailLimpo = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        String nomeLimpo = request.getNome() != null ? request.getNome().trim() : "";
+        String telLimpo = (request.getTelefone() != null && !request.getTelefone().isBlank())
+                ? request.getTelefone().trim() : "";
+        Double peso = request.getPeso() > 0 ? request.getPeso() : null;
+        Double altura = request.getAltura() > 0 ? request.getAltura() : null;
+
         try {
-            // Verifica duplicidade de CPF antes de persistir
-            if (repositorio.buscarPorCpf(request.getCpf()).isPresent()) {
+            // 1. Validação proativa de duplicidade de CPF
+            if (repositorio.buscarPorCpf(cpfLimpo).isPresent()) {
                 responseObserver.onError(
                     Status.ALREADY_EXISTS
-                        .withDescription("CPF já cadastrado: " + request.getCpf())
+                        .withDescription("CPF já cadastrado: " + cpfLimpo)
+                        .asRuntimeException()
+                );
+                return;
+            }
+
+            // 2. Validação proativa de duplicidade de E-mail
+            if (repositorio.buscarPorEmail(emailLimpo).isPresent()) {
+                responseObserver.onError(
+                    Status.ALREADY_EXISTS
+                        .withDescription("E-mail já cadastrado: " + emailLimpo)
                         .asRuntimeException()
                 );
                 return;
             }
 
             Aluno aluno = new Aluno(
-                request.getNome(),
-                request.getCpf(),
-                request.getEmail(),
-                request.getTelefone(),
-                request.getPeso(),
-                request.getAltura()
+                nomeLimpo,
+                cpfLimpo,
+                emailLimpo,
+                telLimpo,
+                peso,
+                altura
             );
 
             tx.begin();
             repositorio.salvar(aluno);
             tx.commit();
 
-            System.out.println("[AlunoService] Aluno cadastrado: id=" + aluno.getId()
-                + ", nome=" + aluno.getNome());
+            System.out.println("[AlunoService] Aluno cadastrado com sucesso: id=" + aluno.getId()
+                + ", nome=" + aluno.getNome() + ", email=" + aluno.getEmail());
 
             responseObserver.onNext(toResponse(aluno, "Aluno cadastrado com sucesso"));
             responseObserver.onCompleted();
 
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
-            System.err.println("[AlunoService] Erro ao cadastrar aluno: " + e.getMessage());
-            responseObserver.onError(
-                Status.INTERNAL
-                    .withDescription("Erro interno ao cadastrar aluno: " + e.getMessage())
-                    .asRuntimeException()
-            );
+            Throwable root = getRootCause(e);
+            String msg = (root.getMessage() != null ? root.getMessage() : e.getMessage()).toLowerCase();
+
+            System.err.println("[AlunoService] Erro ao cadastrar aluno: " + root.getMessage());
+
+            if (msg.contains("duplicate key") || msg.contains("unique constraint") || msg.contains("violates unique")) {
+                if (msg.contains("email") || msg.contains("ukmbvpvjdhy6gsmbw6odlro3ub")) {
+                    responseObserver.onError(
+                        Status.ALREADY_EXISTS
+                            .withDescription("E-mail já cadastrado: " + emailLimpo)
+                            .asRuntimeException()
+                    );
+                } else if (msg.contains("cpf")) {
+                    responseObserver.onError(
+                        Status.ALREADY_EXISTS
+                            .withDescription("CPF já cadastrado: " + cpfLimpo)
+                            .asRuntimeException()
+                    );
+                } else {
+                    responseObserver.onError(
+                        Status.ALREADY_EXISTS
+                            .withDescription("Registro duplicado: CPF ou e-mail já existente no banco de dados.")
+                            .asRuntimeException()
+                    );
+                }
+            } else if (msg.contains("value too long") || msg.contains("varying(")) {
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                        .withDescription("Tamanho de campo excedido: verifique se o CPF ou telefone possui caracteres além do permitido.")
+                        .asRuntimeException()
+                );
+            } else {
+                responseObserver.onError(
+                    Status.INTERNAL
+                        .withDescription("Erro ao cadastrar aluno: " + (root.getMessage() != null ? root.getMessage() : e.getMessage()))
+                        .asRuntimeException()
+                );
+            }
+        } finally {
+            closeEntityManager(em);
         }
     }
 
@@ -79,14 +158,16 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
     @Override
     public void buscarAluno(BuscarAlunoRequest request,
                             StreamObserver<AlunoResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        AlunoRepositorio repositorio = new AlunoRepositorio(em);
         try {
-            UUID id = UUID.fromString(request.getId());
+            UUID id = UUID.fromString(request.getId().trim());
             Optional<Aluno> opcional = repositorio.buscarPorId(id);
 
             if (opcional.isEmpty()) {
                 responseObserver.onError(
                     Status.NOT_FOUND
-                        .withDescription("Aluno não encontrado: " + request.getId())
+                        .withDescription("Aluno não encontrado para o ID: " + request.getId())
                         .asRuntimeException()
                 );
                 return;
@@ -98,9 +179,18 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
         } catch (IllegalArgumentException e) {
             responseObserver.onError(
                 Status.INVALID_ARGUMENT
-                    .withDescription("ID inválido: " + request.getId())
+                    .withDescription("ID informado possui formato UUID inválido: " + request.getId())
                     .asRuntimeException()
             );
+        } catch (Exception e) {
+            Throwable root = getRootCause(e);
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao buscar aluno: " + root.getMessage())
+                    .asRuntimeException()
+            );
+        } finally {
+            closeEntityManager(em);
         }
     }
 
@@ -109,15 +199,28 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
     @Override
     public void listarAlunos(ListarAlunosRequest request,
                              StreamObserver<ListaAlunosResponse> responseObserver) {
-        List<Aluno> alunos = repositorio.listarTodos();
+        EntityManager em = createEntityManager();
+        AlunoRepositorio repositorio = new AlunoRepositorio(em);
+        try {
+            List<Aluno> alunos = repositorio.listarTodos();
 
-        ListaAlunosResponse.Builder builder = ListaAlunosResponse.newBuilder();
-        for (Aluno aluno : alunos) {
-            builder.addAlunos(toResponse(aluno, ""));
+            ListaAlunosResponse.Builder builder = ListaAlunosResponse.newBuilder();
+            for (Aluno aluno : alunos) {
+                builder.addAlunos(toResponse(aluno, ""));
+            }
+
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            Throwable root = getRootCause(e);
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao listar alunos: " + root.getMessage())
+                    .asRuntimeException()
+            );
+        } finally {
+            closeEntityManager(em);
         }
-
-        responseObserver.onNext(builder.build());
-        responseObserver.onCompleted();
     }
 
     // ─── AtualizarStatusAluno ─────────────────────────────────────────────
@@ -125,22 +228,24 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
     @Override
     public void atualizarStatusAluno(AtualizarStatusAlunoRequest request,
                                      StreamObserver<AlunoResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        AlunoRepositorio repositorio = new AlunoRepositorio(em);
         EntityTransaction tx = em.getTransaction();
         try {
-            UUID id = UUID.fromString(request.getId());
+            UUID id = UUID.fromString(request.getId().trim());
             Optional<Aluno> opcional = repositorio.buscarPorId(id);
 
             if (opcional.isEmpty()) {
                 responseObserver.onError(
                     Status.NOT_FOUND
-                        .withDescription("Aluno não encontrado: " + request.getId())
+                        .withDescription("Aluno não encontrado para atualização de status: " + request.getId())
                         .asRuntimeException()
                 );
                 return;
             }
 
             tx.begin();
-            Aluno atualizado = repositorio.atualizarStatus(opcional.get(), request.getStatus());
+            Aluno atualizado = repositorio.atualizarStatus(opcional.get(), request.getStatus().trim().toUpperCase());
             tx.commit();
 
             System.out.println("[AlunoService] Status atualizado: id=" + atualizado.getId()
@@ -150,13 +255,22 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
                 "Status atualizado para " + request.getStatus()));
             responseObserver.onCompleted();
 
-        } catch (Exception e) {
-            if (tx.isActive()) tx.rollback();
+        } catch (IllegalArgumentException e) {
             responseObserver.onError(
-                Status.INTERNAL
-                    .withDescription("Erro ao atualizar status: " + e.getMessage())
+                Status.INVALID_ARGUMENT
+                    .withDescription("ID informado possui formato UUID inválido: " + request.getId())
                     .asRuntimeException()
             );
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            Throwable root = getRootCause(e);
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao atualizar status: " + root.getMessage())
+                    .asRuntimeException()
+            );
+        } finally {
+            closeEntityManager(em);
         }
     }
 

@@ -45,11 +45,9 @@ public class ServidorAlunoGrpc {
 
         EntityManagerFactory emf = Persistence.createEntityManagerFactory(
             "aluno-pu", jpaProps);
-        EntityManager em = emf.createEntityManager();
-
         // ── Inicialização do servidor gRPC ─────────────────────────────────
         Server server = ServerBuilder.forPort(PORTA)
-                .addService(new AlunoServiceImpl(em))
+                .addService(new AlunoServiceImpl(emf))
                 .build();
 
         server.start();
@@ -58,7 +56,6 @@ public class ServidorAlunoGrpc {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("[AlunoService] Encerrando servidor...");
             server.shutdown();
-            em.close();
             emf.close();
         }));
 

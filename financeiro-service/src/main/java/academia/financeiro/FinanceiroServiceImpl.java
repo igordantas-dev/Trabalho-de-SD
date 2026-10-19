@@ -6,6 +6,7 @@ import academia.grpc.*;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
 
 import java.time.LocalDate;
@@ -16,16 +17,40 @@ import java.util.UUID;
 
 /**
  * Implementação do serviço gRPC FinanceiroService.
- * Persiste e consulta mensalidades no PostgreSQL via JPA.
+ * Gerencia emissão e pagamento de mensalidades no PostgreSQL via JPA.
+ * Suporta isolamento de transação por chamada via EntityManagerFactory.
  */
 public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServiceImplBase {
 
-    private final EntityManager em;
-    private final FinanceiroRepositorio repositorio;
+    private final EntityManagerFactory emf;
+    private final EntityManager singleEm;
+
+    public FinanceiroServiceImpl(EntityManagerFactory emf) {
+        this.emf = emf;
+        this.singleEm = null;
+    }
 
     public FinanceiroServiceImpl(EntityManager em) {
-        this.em          = em;
-        this.repositorio = new FinanceiroRepositorio(em);
+        this.emf = null;
+        this.singleEm = em;
+    }
+
+    private EntityManager createEntityManager() {
+        return emf != null ? emf.createEntityManager() : singleEm;
+    }
+
+    private void closeEntityManager(EntityManager em) {
+        if (emf != null && em != null && em.isOpen()) {
+            em.close();
+        }
+    }
+
+    private Throwable getRootCause(Throwable t) {
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root;
     }
 
     // ─── GerarMensalidade ─────────────────────────────────────────────────
@@ -33,22 +58,43 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
     @Override
     public void gerarMensalidade(GerarMensalidadeRequest request,
                                  StreamObserver<MensalidadeResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        FinanceiroRepositorio repositorio = new FinanceiroRepositorio(em);
         EntityTransaction tx = em.getTransaction();
         try {
-            LocalDate dataVencimento = LocalDate.parse(request.getDataVencimento());
+            if (request.getAlunoId() == null || request.getAlunoId().isBlank()) {
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                        .withDescription("O ID do aluno (alunoId) é obrigatório para gerar mensalidade.")
+                        .asRuntimeException()
+                );
+                return;
+            }
+
+            LocalDate dataVencimento;
+            try {
+                dataVencimento = LocalDate.parse(request.getDataVencimento().trim());
+            } catch (Exception ex) {
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                        .withDescription("Data de vencimento inválida. Use o formato YYYY-MM-DD: " + request.getDataVencimento())
+                        .asRuntimeException()
+                );
+                return;
+            }
 
             Mensalidade mensalidade = new Mensalidade(
-                request.getAlunoId(),
+                request.getAlunoId().trim(),
                 request.getValor(),
                 dataVencimento,
-                request.getDescricao()
+                request.getDescricao() != null ? request.getDescricao().trim() : ""
             );
 
             tx.begin();
             repositorio.salvar(mensalidade);
             tx.commit();
 
-            System.out.println("[FinanceiroService] Mensalidade gerada: id=" + mensalidade.getId()
+            System.out.println("[FinanceiroService] Mensalidade gerada com sucesso: id=" + mensalidade.getId()
                 + ", aluno=" + mensalidade.getAlunoId()
                 + ", valor=R$" + mensalidade.getValor());
 
@@ -57,12 +103,15 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
 
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
-            System.err.println("[FinanceiroService] Erro ao gerar mensalidade: " + e.getMessage());
+            Throwable root = getRootCause(e);
+            System.err.println("[FinanceiroService] Erro ao gerar mensalidade: " + root.getMessage());
             responseObserver.onError(
                 Status.INTERNAL
-                    .withDescription("Erro ao gerar mensalidade: " + e.getMessage())
+                    .withDescription("Erro ao gerar mensalidade: " + (root.getMessage() != null ? root.getMessage() : e.getMessage()))
                     .asRuntimeException()
             );
+        } finally {
+            closeEntityManager(em);
         }
     }
 
@@ -71,15 +120,28 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
     @Override
     public void registrarPagamento(RegistrarPagamentoRequest request,
                                    StreamObserver<MensalidadeResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        FinanceiroRepositorio repositorio = new FinanceiroRepositorio(em);
         EntityTransaction tx = em.getTransaction();
         try {
-            UUID id = UUID.fromString(request.getMensalidadeId());
+            UUID id;
+            try {
+                id = UUID.fromString(request.getMensalidadeId().trim());
+            } catch (Exception ex) {
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                        .withDescription("ID informado possui formato UUID inválido: " + request.getMensalidadeId())
+                        .asRuntimeException()
+                );
+                return;
+            }
+
             Optional<Mensalidade> opcional = repositorio.buscarPorId(id);
 
             if (opcional.isEmpty()) {
                 responseObserver.onError(
                     Status.NOT_FOUND
-                        .withDescription("Mensalidade não encontrada: " + request.getMensalidadeId())
+                        .withDescription("Mensalidade não encontrada para o ID: " + request.getMensalidadeId())
                         .asRuntimeException()
                 );
                 return;
@@ -87,10 +149,10 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
 
             Mensalidade mensalidade = opcional.get();
 
-            if ("PAGO".equals(mensalidade.getStatus())) {
+            if ("PAGO".equalsIgnoreCase(mensalidade.getStatus())) {
                 responseObserver.onError(
                     Status.FAILED_PRECONDITION
-                        .withDescription("Mensalidade já foi paga anteriormente.")
+                        .withDescription("Esta mensalidade já foi quitada anteriormente e não pode ser paga novamente.")
                         .asRuntimeException()
                 );
                 return;
@@ -99,11 +161,11 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
             tx.begin();
             mensalidade.setStatus("PAGO");
             mensalidade.setDataPagamento(LocalDateTime.now());
-            mensalidade.setFormaPagamento(request.getFormaPagamento());
+            mensalidade.setFormaPagamento(request.getFormaPagamento().trim().toUpperCase());
             Mensalidade atualizada = repositorio.atualizar(mensalidade);
             tx.commit();
 
-            System.out.println("[FinanceiroService] Pagamento registrado: id=" + id
+            System.out.println("[FinanceiroService] Pagamento registrado com sucesso: id=" + id
                 + ", forma=" + request.getFormaPagamento());
 
             responseObserver.onNext(toResponse(atualizada,
@@ -112,11 +174,15 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
 
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
+            Throwable root = getRootCause(e);
+            System.err.println("[FinanceiroService] Erro ao registrar pagamento: " + root.getMessage());
             responseObserver.onError(
                 Status.INTERNAL
-                    .withDescription("Erro ao registrar pagamento: " + e.getMessage())
+                    .withDescription("Erro ao registrar pagamento: " + (root.getMessage() != null ? root.getMessage() : e.getMessage()))
                     .asRuntimeException()
             );
+        } finally {
+            closeEntityManager(em);
         }
     }
 
@@ -125,14 +191,16 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
     @Override
     public void buscarMensalidade(BuscarMensalidadeRequest request,
                                   StreamObserver<MensalidadeResponse> responseObserver) {
+        EntityManager em = createEntityManager();
+        FinanceiroRepositorio repositorio = new FinanceiroRepositorio(em);
         try {
-            UUID id = UUID.fromString(request.getId());
+            UUID id = UUID.fromString(request.getId().trim());
             Optional<Mensalidade> opcional = repositorio.buscarPorId(id);
 
             if (opcional.isEmpty()) {
                 responseObserver.onError(
                     Status.NOT_FOUND
-                        .withDescription("Mensalidade não encontrada: " + request.getId())
+                        .withDescription("Mensalidade não encontrada para o ID: " + request.getId())
                         .asRuntimeException()
                 );
                 return;
@@ -144,9 +212,18 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
         } catch (IllegalArgumentException e) {
             responseObserver.onError(
                 Status.INVALID_ARGUMENT
-                    .withDescription("ID inválido: " + request.getId())
+                    .withDescription("ID informado possui formato UUID inválido: " + request.getId())
                     .asRuntimeException()
             );
+        } catch (Exception e) {
+            Throwable root = getRootCause(e);
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Erro ao buscar mensalidade: " + root.getMessage())
+                    .asRuntimeException()
+            );
+        } finally {
+            closeEntityManager(em);
         }
     }
 
@@ -155,19 +232,34 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
     @Override
     public void listarMensalidadesPorAluno(ListarMensalidadesPorAlunoRequest request,
                                            StreamObserver<ListaMensalidadesResponse> responseObserver) {
-        EntityTransaction tx = em.getTransaction();
+        EntityManager em = createEntityManager();
+        FinanceiroRepositorio repositorio = new FinanceiroRepositorio(em);
         try {
-            // Atualiza status de mensalidades vencidas antes de listar
-            tx.begin();
-            int atualizadas = repositorio.marcarAtrasadas();
-            tx.commit();
-
-            if (atualizadas > 0) {
-                System.out.println("[FinanceiroService] " + atualizadas
-                    + " mensalidade(s) marcadas como ATRASADO");
+            String alunoId = request.getAlunoId() != null ? request.getAlunoId().trim() : "";
+            if (alunoId.isBlank()) {
+                responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                        .withDescription("O ID do aluno (alunoId) é obrigatório para listar as mensalidades.")
+                        .asRuntimeException()
+                );
+                return;
             }
 
-            List<Mensalidade> lista = repositorio.listarPorAluno(request.getAlunoId());
+            // Atualiza status de mensalidades vencidas de forma segura e não bloqueante
+            EntityTransaction tx = em.getTransaction();
+            try {
+                tx.begin();
+                int atualizadas = repositorio.marcarAtrasadas();
+                tx.commit();
+                if (atualizadas > 0) {
+                    System.out.println("[FinanceiroService] " + atualizadas + " mensalidade(s) marcadas como ATRASADO");
+                }
+            } catch (Exception ex) {
+                if (tx.isActive()) tx.rollback();
+                System.err.println("[FinanceiroService] Aviso ao atualizar mensalidades atrasadas: " + ex.getMessage());
+            }
+
+            List<Mensalidade> lista = repositorio.listarPorAluno(alunoId);
 
             ListaMensalidadesResponse.Builder builder = ListaMensalidadesResponse.newBuilder();
             for (Mensalidade m : lista) {
@@ -178,12 +270,15 @@ public class FinanceiroServiceImpl extends FinanceiroServiceGrpc.FinanceiroServi
             responseObserver.onCompleted();
 
         } catch (Exception e) {
-            if (tx.isActive()) tx.rollback();
+            Throwable root = getRootCause(e);
+            System.err.println("[FinanceiroService] Erro ao listar mensalidades: " + root.getMessage());
             responseObserver.onError(
                 Status.INTERNAL
-                    .withDescription("Erro ao listar mensalidades: " + e.getMessage())
+                    .withDescription("Erro ao listar mensalidades do aluno: " + root.getMessage())
                     .asRuntimeException()
             );
+        } finally {
+            closeEntityManager(em);
         }
     }
 

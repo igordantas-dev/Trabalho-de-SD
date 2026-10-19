@@ -40,10 +40,8 @@ public class ServidorTreinoGrpc {
 
         EntityManagerFactory emf = Persistence.createEntityManagerFactory(
             "treino-pu", jpaProps);
-        EntityManager em = emf.createEntityManager();
-
         Server server = ServerBuilder.forPort(PORTA)
-                .addService(new TreinoServiceImpl(em))
+                .addService(new TreinoServiceImpl(emf))
                 .build();
 
         server.start();
@@ -52,7 +50,6 @@ public class ServidorTreinoGrpc {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("[TreinoService] Encerrando servidor...");
             server.shutdown();
-            em.close();
             emf.close();
         }));
 
