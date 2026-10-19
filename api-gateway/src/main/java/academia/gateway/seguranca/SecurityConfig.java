@@ -42,8 +42,7 @@ public class SecurityConfig {
                         // 1. Endpoints de autenticação pública
                         .requestMatchers(
                                 "/api/autenticar",
-                                "/api/realizar-login",
-                                "/api/gerar-token"
+                                "/api/gerarToken"
                         ).permitAll()
 
                         // 2. Swagger / OpenAPI 3

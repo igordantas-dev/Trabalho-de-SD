@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RestController
 @RequestMapping("/api")
-@Tag(name = "3. Treinos", description = "Operações para criar fichas, gerar treinos com IA, consultar e registrar execução com cargas reais")
+@Tag(name = "Treinos", description = "Criação de fichas, geração com IA e registro de execuções")
 public class TreinoController {
 
     private static final long DEADLINE_SEGUNDOS = 5;
@@ -46,8 +46,8 @@ public class TreinoController {
      * Cria uma nova ficha de treino manualmente para um aluno.
      * POST /api/criar-ficha-treino
      */
-    @PostMapping({"/criar-ficha-treino", "/treinos"})
-    @Operation(summary = "Criar ficha de treino manual", description = "Cria uma ficha contendo exercícios, repetições, séries e sugestão de carga, persistindo no PostgreSQL via treino-service (gRPC).")
+    @PostMapping("/criarFichaTreino")
+    @Operation(summary = "Criar ficha de treino", description = "Cria uma ficha contendo exercícios, repetições, séries e sugestão de carga.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Ficha de treino criada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da ficha inválidos"),
@@ -79,8 +79,8 @@ public class TreinoController {
      * Gera um treino inteligente assistido por IA e salva no banco de dados.
      * POST /api/gerar-treino-ia
      */
-    @PostMapping({"/gerar-treino-ia", "/treinos/gerar-ia"})
-    @Operation(summary = "Gerar treino inteligente com IA", description = "Busca a biometria do aluno no aluno-service, sintetiza exercícios ideais com base no objetivo e foco, e persiste a ficha no treino-service.")
+    @PostMapping("/gerarTreinoIa")
+    @Operation(summary = "Gerar treino com IA", description = "Gera uma ficha de treino personalizada com inteligência artificial baseada no perfil e objetivo do aluno.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Treino gerado pela IA e salvo com sucesso"),
             @ApiResponse(responseCode = "404", description = "Aluno não encontrado"),
@@ -95,8 +95,8 @@ public class TreinoController {
      * Busca uma ficha de treino pelo ID (UUID).
      * GET /api/buscar-ficha-treino/{id}
      */
-    @GetMapping({"/buscar-ficha-treino/{id}", "/treinos/{id}"})
-    @Operation(summary = "Buscar ficha de treino por ID", description = "Retorna os detalhes da ficha de treino e todos os exercícios associados.")
+    @GetMapping("/buscarFichaTreino/{id}")
+    @Operation(summary = "Buscar ficha de treino por ID", description = "Retorna os detalhes de uma ficha de treino e seus exercícios.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Ficha encontrada"),
             @ApiResponse(responseCode = "404", description = "Ficha não encontrada"),
@@ -113,8 +113,8 @@ public class TreinoController {
      * Lista todas as fichas de treino vinculadas a um aluno.
      * GET /api/listar-fichas-aluno/{alunoId}
      */
-    @GetMapping({"/listar-fichas-aluno/{alunoId}", "/treinos/aluno/{alunoId}"})
-    @Operation(summary = "Listar fichas de treino do aluno", description = "Retorna o histórico completo de fichas de treino de um aluno específico.")
+    @GetMapping("/listarFichasAluno/{alunoId}")
+    @Operation(summary = "Listar fichas do aluno", description = "Retorna todas as fichas de treino de um aluno.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Fichas listadas com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
@@ -134,8 +134,8 @@ public class TreinoController {
      * Registra a conclusão do treino e salva as cargas reais utilizadas em cada exercício.
      * POST /api/registrar-execucao-treino/{id}
      */
-    @PostMapping({"/registrar-execucao-treino/{id}", "/treinos/{id}/execucao"})
-    @Operation(summary = "Registrar execução e cargas reais", description = "Conclui a ficha de treino e persiste a carga real (kg) utilizada em cada exercício para progressão de carga futura.")
+    @PostMapping("/registrarExecucaoTreino/{id}")
+    @Operation(summary = "Registrar execução do treino", description = "Registra a conclusão do treino com as cargas reais utilizadas em cada exercício.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Execução registrada com sucesso"),
             @ApiResponse(responseCode = "404", description = "Ficha não encontrada"),

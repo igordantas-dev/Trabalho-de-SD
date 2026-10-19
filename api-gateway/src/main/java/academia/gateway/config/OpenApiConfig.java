@@ -23,10 +23,10 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Academia — API Gateway Distribuído")
-                        .description("API REST do Gateway centralizador da Academia. Comunica com os microsserviços aluno-service, treino-service e financeiro-service via gRPC, com validação de dados e segurança JWT.")
+                        .title("GymDist Pro — API de Gestão de Academia")
+                        .description("API centralizada para gerenciamento de alunos, fichas de treino (incluindo geração por IA) e controle financeiro de mensalidades.")
                         .version("2.0.0")
-                        .contact(new Contact().name("Equipe de Sistemas Distribuídos")))
+                        .contact(new Contact().name("GymDist")))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME_NAME, new SecurityScheme()
@@ -34,6 +34,6 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("Insira o token JWT gerado em /api/autenticar ou GeradorTokenJwt.")));
+                                .description("Insira o token JWT obtido em POST /api/autenticar ou GET /api/gerarToken.")));
     }
 }

@@ -14,7 +14,7 @@ class GymApp {
     this.setupEventListeners();
     this.atualizarStatusJwt();
 
-    // Se não tiver token, gera automaticamente o token de laboratório para início imediato
+    // Se não tiver token, gera automaticamente o token de laboratório
     if (!this.token) {
       await this.obterTokenRapido();
     }
@@ -34,12 +34,12 @@ class GymApp {
 
     if (this.token) {
       indicator.classList.add('active');
-      label.textContent = 'JWT: Ativo';
-      textarea.value = this.token;
+      label.textContent = 'Sessão Ativa';
+      if (textarea) textarea.value = this.token;
     } else {
       indicator.classList.remove('active');
-      label.textContent = 'JWT: Ausente (401)';
-      textarea.value = '';
+      label.textContent = 'Sem Sessão';
+      if (textarea) textarea.value = '';
     }
   }
 
@@ -55,14 +55,14 @@ class GymApp {
 
   async obterTokenRapido() {
     try {
-      const resp = await fetch('/api/gerar-token');
+      const resp = await fetch('/api/gerarToken');
       if (resp.ok) {
         const data = await resp.json();
         this.setToken(data.token);
-        this.mostrarToast('Token JWT de laboratório gerado com sucesso!', 'success');
+        this.mostrarToast('Sessão iniciada com sucesso!', 'success');
       }
     } catch (e) {
-      console.warn('Erro ao obter token de laboratório:', e);
+      console.warn('Erro ao obter token:', e);
     }
   }
 
@@ -77,14 +77,14 @@ class GymApp {
       if (resp.ok) {
         const data = await resp.json();
         this.setToken(data.token);
-        this.mostrarToast(`Bem-vindo, ${data.usuario}! Token JWT emitido.`, 'success');
+        this.mostrarToast(`Bem-vindo, ${data.usuario}!`, 'success');
         this.fecharModal('modal-login');
       } else {
         const err = await resp.json();
         this.mostrarToast(`Falha no login: ${err.mensagem || 'Credenciais inválidas'}`, 'danger');
       }
     } catch (e) {
-      this.mostrarToast(`Erro de conexão com o Gateway: ${e.message}`, 'danger');
+      this.mostrarToast(`Erro de conexão: ${e.message}`, 'danger');
     }
   }
 
@@ -107,7 +107,7 @@ class GymApp {
       // Se não autenticado (401)
       if (response.status === 401) {
         this.setToken(null);
-        this.mostrarToast('Sessão expirada ou sem token (HTTP 401). Faça login novamente.', 'danger');
+        this.mostrarToast('Sessão expirada. Faça login novamente.', 'danger');
       }
 
       return response;
@@ -121,12 +121,13 @@ class GymApp {
 
   async carregarAlunos() {
     try {
-      const resp = await this.apiRequest('/api/listar-alunos');
+      const resp = await this.apiRequest('/api/listarAlunos');
       if (resp.ok) {
         this.alunos = await resp.json();
         this.renderizarTabelaAlunos();
         this.atualizarSelectsAlunos();
         this.atualizarMetricasDashboard();
+        this.renderizarAlunosRecentesDashboard();
       }
     } catch (e) {
       console.error('Erro ao listar alunos:', e);
@@ -141,13 +142,13 @@ class GymApp {
     }
 
     tbody.innerHTML = this.alunos.map(aluno => {
-      const statusBadge = aluno.status === 'ATIVO' 
-        ? '<span class="badge badge-success">ATIVO</span>'
-        : aluno.status === 'INADIMPLENTE' 
-          ? '<span class="badge badge-warning">INADIMPLENTE</span>' 
-          : '<span class="badge badge-danger">INATIVO</span>';
+      const statusBadge = aluno.status === 'ATIVO'
+        ? '<span class="badge badge-success">Ativo</span>'
+        : aluno.status === 'INADIMPLENTE'
+          ? '<span class="badge badge-warning">Inadimplente</span>'
+          : '<span class="badge badge-danger">Inativo</span>';
 
-      const biometria = (aluno.peso ? `${aluno.peso}kg` : '-') + ' / ' + (aluno.altura ? `${aluno.altura}m` : '-');
+      const biometria = (aluno.peso ? `${aluno.peso}kg` : '—') + ' / ' + (aluno.altura ? `${aluno.altura}m` : '—');
 
       return `
         <tr>
@@ -170,15 +171,43 @@ class GymApp {
     }).join('');
   }
 
+  renderizarAlunosRecentesDashboard() {
+    const container = document.getElementById('dashboard-alunos-recentes');
+    if (!container) return;
+
+    if (!this.alunos || this.alunos.length === 0) {
+      container.innerHTML = `<p class="text-muted text-center py-4">Nenhum aluno cadastrado ainda.</p>`;
+      return;
+    }
+
+    const recentes = this.alunos.slice(-5).reverse();
+    container.innerHTML = recentes.map(a => {
+      const statusBadge = a.status === 'ATIVO'
+        ? '<span class="badge badge-success">Ativo</span>'
+        : a.status === 'INADIMPLENTE'
+          ? '<span class="badge badge-warning">Inadimplente</span>'
+          : '<span class="badge badge-danger">Inativo</span>';
+      return `
+        <div class="status-row">
+          <div>
+            <strong style="font-size:0.88rem">${a.nome}</strong>
+            <small class="text-muted d-block">${a.email}</small>
+          </div>
+          ${statusBadge}
+        </div>
+      `;
+    }).join('');
+  }
+
   async cadastrarAluno(dados) {
-    const resp = await this.apiRequest('/api/cadastrar-aluno', {
+    const resp = await this.apiRequest('/api/cadastrarAluno', {
       method: 'POST',
       body: JSON.stringify(dados)
     });
 
     if (resp.status === 201) {
       const aluno = await resp.json();
-      this.mostrarToast(`Aluno ${aluno.nome} cadastrado com sucesso! (ID: ${aluno.id.slice(0, 8)}...)`, 'success');
+      this.mostrarToast(`Aluno ${aluno.nome} cadastrado com sucesso!`, 'success');
       document.getElementById('form-cadastrar-aluno').reset();
       await this.carregarAlunos();
     } else {
@@ -189,7 +218,7 @@ class GymApp {
 
   async alternarStatusAluno(id, statusAtual) {
     const novoStatus = statusAtual === 'ATIVO' ? 'INATIVO' : 'ATIVO';
-    const resp = await this.apiRequest(`/api/atualizar-status-aluno/${id}`, {
+    const resp = await this.apiRequest(`/api/atualizarStatusAluno/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: novoStatus })
     });
@@ -242,7 +271,7 @@ class GymApp {
   }
 
   async criarFichaTreino(dados) {
-    const resp = await this.apiRequest('/api/criar-ficha-treino', {
+    const resp = await this.apiRequest('/api/criarFichaTreino', {
       method: 'POST',
       body: JSON.stringify(dados)
     });
@@ -251,7 +280,13 @@ class GymApp {
       const ficha = await resp.json();
       this.mostrarToast(`Ficha "${ficha.titulo}" criada com sucesso!`, 'success');
       document.getElementById('form-criar-ficha').reset();
-      document.getElementById('select-filtro-aluno-treino').value = dados.alunoId;
+      // Limpa o container de exercícios e adiciona um padrão
+      document.getElementById('exercicios-container').innerHTML = '';
+      this.adicionarExercicioLinha();
+
+      // Seleciona o aluno no filtro lateral e carrega as fichas automaticamente
+      const selectFiltro = document.getElementById('select-filtro-aluno-treino');
+      selectFiltro.value = dados.alunoId;
       await this.carregarFichasDoAluno(dados.alunoId);
     } else {
       const err = await resp.json();
@@ -262,18 +297,20 @@ class GymApp {
   async carregarFichasDoAluno(alunoId) {
     const container = document.getElementById('fichas-container');
     if (!alunoId) {
-      container.innerHTML = '<p class="text-muted text-center py-4">Selecione um aluno acima.</p>';
+      container.innerHTML = '<p class="text-muted text-center py-4">Selecione um aluno acima para ver suas fichas.</p>';
       return;
     }
 
+    container.innerHTML = '<p class="text-muted text-center py-4">Carregando fichas...</p>';
+
     try {
-      const resp = await this.apiRequest(`/api/listar-fichas-aluno/${alunoId}`);
+      const resp = await this.apiRequest(`/api/listarFichasAluno/${alunoId}`);
       if (resp.ok) {
         const fichas = await resp.json();
         this.renderizarFichas(fichas, container);
       }
     } catch (e) {
-      container.innerHTML = '<p class="text-danger">Erro ao carregar fichas.</p>';
+      container.innerHTML = '<p class="text-danger text-center py-4">Erro ao carregar fichas.</p>';
     }
   }
 
@@ -284,9 +321,9 @@ class GymApp {
     }
 
     container.innerHTML = fichas.map(f => {
-      const badgeStatus = f.status === 'CONCLUIDO' 
-        ? '<span class="badge badge-success">CONCLUÍDO</span>'
-        : '<span class="badge badge-warning">PENDENTE</span>';
+      const badgeStatus = f.status === 'CONCLUIDO'
+        ? '<span class="badge badge-success">Concluído</span>'
+        : '<span class="badge badge-warning">Pendente</span>';
 
       const itensHtml = f.itens.map(item => `
         <div class="exercicio-item-card" data-item-id="${item.id}">
@@ -297,8 +334,8 @@ class GymApp {
           <div>${item.series}x${item.repeticoes}</div>
           <div title="Carga sugerida">Sug.: ${item.cargaSugerida}kg</div>
           <div>
-            <input type="number" step="0.5" class="form-control form-control-sm input-carga-real" 
-                   value="${item.cargaUsada > 0 ? item.cargaUsada : item.cargaSugerida}" 
+            <input type="number" step="0.5" class="form-control form-control-sm input-carga-real"
+                   value="${item.cargaUsada > 0 ? item.cargaUsada : item.cargaSugerida}"
                    placeholder="Real kg">
           </div>
           <div>
@@ -312,7 +349,7 @@ class GymApp {
           <div class="ficha-header">
             <div>
               <strong>${f.titulo}</strong>
-              <small class="text-muted d-block">Objetivo: ${f.objetivo} · Criado em: ${f.dataCriacao || 'Hoje'}</small>
+              <small class="text-muted d-block">Objetivo: ${f.objetivo} · ${f.dataCriacao || 'Hoje'}</small>
             </div>
             ${badgeStatus}
           </div>
@@ -348,14 +385,13 @@ class GymApp {
       itens.push({ itemId, cargaUsada, concluido });
     });
 
-    const resp = await this.apiRequest(`/api/registrar-execucao-treino/${fichaId}`, {
+    const resp = await this.apiRequest(`/api/registrarExecucaoTreino/${fichaId}`, {
       method: 'POST',
       body: JSON.stringify({ itens })
     });
 
     if (resp.ok) {
-      const atualizada = await resp.json();
-      this.mostrarToast(`Execução da ficha registrada! Cargas salvas com sucesso.`, 'success');
+      this.mostrarToast(`Execução registrada! Cargas salvas com sucesso.`, 'success');
       const alunoId = document.getElementById('select-filtro-aluno-treino').value;
       await this.carregarFichasDoAluno(alunoId);
     } else {
@@ -372,18 +408,18 @@ class GymApp {
     const btn = document.getElementById('btn-submit-ia');
 
     badge.className = 'badge badge-warning';
-    badge.textContent = 'Processando com IA...';
+    badge.textContent = 'Gerando...';
     btn.disabled = true;
 
     resultado.innerHTML = `
       <div class="text-center py-4">
         <div style="font-size: 2rem; animation: pulse 1s infinite;">✨</div>
-        <p class="text-muted mt-2">Consultando biometria e estruturando exercícios...</p>
+        <p class="text-muted mt-2">Analisando perfil do aluno e montando os exercícios...</p>
       </div>
     `;
 
     try {
-      const resp = await this.apiRequest('/api/gerar-treino-ia', {
+      const resp = await this.apiRequest('/api/gerarTreinoIa', {
         method: 'POST',
         body: JSON.stringify(dados)
       });
@@ -391,17 +427,17 @@ class GymApp {
       if (resp.ok) {
         const ficha = await resp.json();
         badge.className = 'badge badge-success';
-        badge.textContent = 'Gerado & Salvo no BD';
-        this.mostrarToast(`Treino IA "${ficha.titulo}" gerado e salvo no PostgreSQL!`, 'success');
+        badge.textContent = 'Salvo com Sucesso';
+        this.mostrarToast(`Treino "${ficha.titulo}" gerado e salvo!`, 'success');
 
         resultado.innerHTML = `
           <div class="ficha-card" style="border-color: rgba(236, 72, 153, 0.4);">
             <div class="ficha-header">
               <div>
                 <strong style="color: #f472b6;">${ficha.titulo}</strong>
-                <small class="text-muted d-block">Objetivo: ${ficha.objetivo} · ID: ${ficha.id}</small>
+                <small class="text-muted d-block">Objetivo: ${ficha.objetivo}</small>
               </div>
-              <span class="badge badge-success">Salvo no Banco</span>
+              <span class="badge badge-success">Salvo</span>
             </div>
             <div class="exercicios-list mt-2">
               ${ficha.itens.map(i => `
@@ -411,14 +447,23 @@ class GymApp {
                     <small class="text-muted d-block">${i.grupoMuscular}</small>
                   </div>
                   <div>${i.series} séries de ${i.repeticoes} reps</div>
-                  <div><strong>${i.cargaSugerida} kg</strong> recomendados</div>
+                  <div><strong>${i.cargaSugerida} kg</strong> sugeridos</div>
                 </div>
               `).join('')}
+            </div>
+            <div class="mt-3 text-center">
+              <button class="btn btn-sm btn-outline" onclick="
+                app.navegarParaAba('tab-treinos');
+                document.getElementById('select-filtro-aluno-treino').value = '${dados.alunoId}';
+                app.carregarFichasDoAluno('${dados.alunoId}');
+              ">
+                Ver na Aba de Fichas →
+              </button>
             </div>
           </div>
         `;
 
-        this.carregarAlunos();
+        await this.carregarAlunos();
       } else {
         const err = await resp.json();
         badge.className = 'badge badge-danger';
@@ -433,14 +478,14 @@ class GymApp {
   // ─── Módulo: Financeiro (Mensalidades) ────────────────────────────────────
 
   async gerarMensalidade(dados) {
-    const resp = await this.apiRequest('/api/gerar-mensalidade', {
+    const resp = await this.apiRequest('/api/gerarMensalidade', {
       method: 'POST',
       body: JSON.stringify(dados)
     });
 
     if (resp.status === 201) {
       const mensalidade = await resp.json();
-      this.mostrarToast(`Mensalidade de R$ ${mensalidade.valor.toFixed(2)} gerada com sucesso!`, 'success');
+      this.mostrarToast(`Mensalidade de R$ ${mensalidade.valor.toFixed(2)} gerada!`, 'success');
       document.getElementById('form-gerar-mensalidade').reset();
       document.getElementById('select-filtro-aluno-fin').value = dados.alunoId;
       await this.carregarMensalidadesDoAluno(dados.alunoId);
@@ -458,7 +503,7 @@ class GymApp {
     }
 
     try {
-      const resp = await this.apiRequest(`/api/listar-mensalidades-aluno/${alunoId}`);
+      const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${alunoId}`);
       if (resp.ok) {
         const lista = await resp.json();
         this.renderizarMensalidades(lista, tbody);
@@ -476,14 +521,14 @@ class GymApp {
 
     tbody.innerHTML = mensalidades.map(m => {
       const statusBadge = m.status === 'PAGO'
-        ? '<span class="badge badge-success">PAGO</span>'
+        ? '<span class="badge badge-success">Pago</span>'
         : m.status === 'ATRASADO'
-          ? '<span class="badge badge-danger">ATRASADO</span>'
-          : '<span class="badge badge-warning">PENDENTE</span>';
+          ? '<span class="badge badge-danger">Atrasado</span>'
+          : '<span class="badge badge-warning">Pendente</span>';
 
       const botaoAcao = m.status !== 'PAGO'
         ? `<button class="btn btn-xs btn-primary" onclick="app.abrirModalPagamento('${m.id}', ${m.valor})">Pagar</button>`
-        : `<small class="text-muted">Pago via ${m.formaPagamento || 'PIX'}</small>`;
+        : `<small class="text-muted">via ${m.formaPagamento || 'PIX'}</small>`;
 
       return `
         <tr>
@@ -499,18 +544,18 @@ class GymApp {
 
   abrirModalPagamento(id, valor) {
     document.getElementById('pagamento-mensalidade-id').value = id;
-    document.getElementById('pagamento-detalhes').textContent = `Valor a quitar: R$ ${valor.toFixed(2)}`;
+    document.getElementById('pagamento-detalhes').textContent = `Valor a pagar: R$ ${valor.toFixed(2)}`;
     this.abrirModal('modal-pagamento');
   }
 
   async confirmarPagamento(id, formaPagamento) {
-    const resp = await this.apiRequest(`/api/registrar-pagamento-mensalidade/${id}`, {
+    const resp = await this.apiRequest(`/api/registrarPagamentoMensalidade/${id}`, {
       method: 'POST',
       body: JSON.stringify({ formaPagamento })
     });
 
     if (resp.ok) {
-      this.mostrarToast(`Pagamento via ${formaPagamento} registrado com sucesso!`, 'success');
+      this.mostrarToast(`Pagamento via ${formaPagamento} registrado!`, 'success');
       this.fecharModal('modal-pagamento');
       const alunoId = document.getElementById('select-filtro-aluno-fin').value;
       await this.carregarMensalidadesDoAluno(alunoId);
@@ -521,90 +566,19 @@ class GymApp {
     }
   }
 
-  // ─── Módulo: Demo Ponta a Ponta (Avaliação Trabalho 2) ─────────────────────
-
-  async executarDemo(tipo) {
-    const consoleOutput = document.getElementById('demo-console-output');
-    const statusPill = document.getElementById('demo-status-pill');
-
-    consoleOutput.textContent = 'Enviando requisição para o API Gateway...';
-    statusPill.textContent = 'Enviando...';
-    statusPill.className = 'badge badge-secondary';
-
-    let url, method, headers = {}, body = null;
-
-    if (tipo === '201') {
-      // Sucesso com JWT
-      url = '/api/cadastrar-aluno';
-      method = 'POST';
-      headers['Content-Type'] = 'application/json';
-      headers['Authorization'] = `Bearer ${this.token || 'token-padrao'}`;
-      body = JSON.stringify({
-        nome: "Aluno Demo Avaliação",
-        cpf: "999." + Math.floor(100 + Math.random() * 900) + ".111-00",
-        email: "demo_" + Math.random().toString(36).substring(7) + "@email.com",
-        peso: 75.0,
-        altura: 1.75
-      });
-    } else if (tipo === '401') {
-      // Barrado no Gateway (Sem token JWT)
-      url = '/api/listar-alunos';
-      method = 'GET';
-      headers['Content-Type'] = 'application/json';
-      // NÃO envia Authorization
-    } else if (tipo === '400') {
-      // Bean Validation inválido (com JWT válido)
-      url = '/api/cadastrar-aluno';
-      method = 'POST';
-      headers['Content-Type'] = 'application/json';
-      headers['Authorization'] = `Bearer ${this.token || 'token-padrao'}`;
-      body = JSON.stringify({
-        nome: "", // inválido!
-        cpf: "",  // inválido!
-        email: "email-invalido"
-      });
-    } else if (tipo === '404') {
-      // Not Found via gRPC
-      url = '/api/buscar-aluno/00000000-0000-0000-0000-000000000000';
-      method = 'GET';
-      headers['Content-Type'] = 'application/json';
-      headers['Authorization'] = `Bearer ${this.token || 'token-padrao'}`;
-    }
-
-    try {
-      const resp = await fetch(url, { method, headers, body });
-      const status = resp.status;
-      let textResp;
-      try {
-        const json = await resp.json();
-        textResp = JSON.stringify(json, null, 2);
-      } catch {
-        textResp = await resp.text();
-      }
-
-      statusPill.textContent = `HTTP ${status} ${resp.statusText}`;
-      if (status >= 200 && status < 300) statusPill.className = 'badge badge-success';
-      else if (status === 401) statusPill.className = 'badge badge-danger';
-      else if (status === 400) statusPill.className = 'badge badge-warning';
-      else statusPill.className = 'badge badge-secondary';
-
-      consoleOutput.textContent = 
-        `>>> REQUISIÇÃO:\n${method} ${url}\nHeaders: ${JSON.stringify(headers)}\nBody: ${body || 'nenhum'}\n\n` +
-        `<<< RESPOSTA DO GATEWAY:\nStatus: ${status} ${resp.statusText}\nBody:\n${textResp}`;
-
-    } catch (e) {
-      consoleOutput.textContent = `Erro: ${e.message}`;
-      statusPill.textContent = 'Erro de Conexão';
-      statusPill.className = 'badge badge-danger';
-    }
-  }
-
-  // ─── Dashboard & UI Helpers ───────────────────────────────────────────────
+  // ─── Dashboard & Métricas ─────────────────────────────────────────────────
 
   atualizarMetricasDashboard() {
     const totalAlunos = this.alunos.length;
+    const ativos = this.alunos.filter(a => a.status === 'ATIVO').length;
+    const inadimplentes = this.alunos.filter(a => a.status === 'INADIMPLENTE').length;
+
     document.getElementById('dash-total-alunos').textContent = totalAlunos;
+    document.getElementById('dash-alunos-ativos').textContent = ativos;
+    document.getElementById('dash-inadimplentes').textContent = inadimplentes;
   }
+
+  // ─── UI Helpers ───────────────────────────────────────────────────────────
 
   navegarParaAba(tabId) {
     document.querySelectorAll('.nav-tab').forEach(t => {
@@ -639,9 +613,9 @@ class GymApp {
   tratarErrosApi(err) {
     if (err.erros) {
       const campos = Object.entries(err.erros).map(([campo, msg]) => `${campo}: ${msg}`).join('; ');
-      this.mostrarToast(`Erro de validação (400): ${campos}`, 'warning');
+      this.mostrarToast(`Dados inválidos: ${campos}`, 'warning');
     } else {
-      this.mostrarToast(err.mensagem || 'Ocorreu um erro no Gateway.', 'danger');
+      this.mostrarToast(err.mensagem || 'Ocorreu um erro.', 'danger');
     }
   }
 
@@ -663,7 +637,7 @@ class GymApp {
 
     document.getElementById('btn-clear-token').addEventListener('click', () => {
       this.setToken(null);
-      this.mostrarToast('Token limpo! Próximas requisições serão rejeitadas com 401.', 'warning');
+      this.mostrarToast('Sessão encerrada. Faça login para continuar.', 'warning');
       this.fecharModal('modal-login');
     });
 
@@ -690,7 +664,7 @@ class GymApp {
 
     document.getElementById('btn-refresh-alunos').addEventListener('click', () => {
       this.carregarAlunos();
-      this.mostrarToast('Lista de alunos atualizada.', 'info');
+      this.mostrarToast('Lista atualizada.', 'info');
     });
 
     // Form Ficha Manual

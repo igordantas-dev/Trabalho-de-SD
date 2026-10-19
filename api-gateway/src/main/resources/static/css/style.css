@@ -146,70 +146,7 @@ body {
   box-shadow: 0 0 8px var(--status-success);
 }
 
-/* Banner de Arquitetura Distribuída */
-.arch-banner {
-  background: rgba(14, 20, 32, 0.7);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 0.75rem 1.5rem;
-  overflow-x: auto;
-}
-
-.arch-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.85rem;
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
-
-.arch-node {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 0.35rem 0.65rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.arch-node.gateway {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.arch-node.service {
-  border-color: rgba(99, 102, 241, 0.4);
-}
-
-.node-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.node-name {
-  font-weight: 600;
-  color: #fff;
-}
-
-.node-meta {
-  font-size: 0.65rem;
-  color: var(--color-primary);
-}
-
-.arch-node.service .node-meta {
-  color: #818cf8;
-}
-
-.arch-arrow {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
+/* Espaçador para remover arch-banner */
 
 /* Abas de Navegação */
 .nav-tabs-container {
@@ -684,63 +621,7 @@ select.form-control {
   font-size: 0.82rem;
 }
 
-/* Demo Checklist Grid */
-.demo-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
 
-.demo-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 1.15rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.demo-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 0.2rem 0.5rem;
-  border-radius: 9999px;
-  width: fit-content;
-}
-
-.demo-badge.success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.demo-badge.danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-.demo-badge.warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.demo-badge.secondary { background: rgba(255, 255, 255, 0.1); color: #d1d5db; }
-
-.demo-card h4 {
-  font-size: 0.95rem;
-  color: #fff;
-}
-
-.demo-card p {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  flex-grow: 1;
-}
-
-.demo-output-box {
-  background: #07090e;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-}
-
-.demo-output-box pre {
-  font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 0.8rem;
-  color: #38bdf8;
-  max-height: 250px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-}
 
 /* Modais */
 .modal-backdrop {
@@ -858,3 +739,16 @@ select.form-control {
 .mb-3 { margin-bottom: 1rem; }
 .mb-4 { margin-bottom: 1.5rem; }
 .py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.d-block { display: block; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.empty-state svg { opacity: 0.3; }
+.section-label { font-size: 0.82rem; font-weight: 600; color: #d1d5db; }
+

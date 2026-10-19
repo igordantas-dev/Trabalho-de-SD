@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RestController
 @RequestMapping("/api")
-@Tag(name = "2. Alunos", description = "Operações para cadastrar, listar, buscar e atualizar status de alunos")
+@Tag(name = "Alunos", description = "Cadastro, consulta e atualização de alunos")
 public class AlunoController {
 
     private static final long DEADLINE_SEGUNDOS = 5;
@@ -39,8 +39,8 @@ public class AlunoController {
      * Cadastra um novo aluno no sistema.
      * POST /api/cadastrar-aluno
      */
-    @PostMapping({"/cadastrar-aluno", "/alunos"})
-    @Operation(summary = "Cadastrar um novo aluno", description = "Valida os dados de entrada via Bean Validation e persiste no PostgreSQL via aluno-service (gRPC).")
+    @PostMapping("/cadastrarAluno")
+    @Operation(summary = "Cadastrar aluno", description = "Cadastra um novo aluno com validação dos dados de entrada.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Aluno cadastrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados de entrada inválidos"),
@@ -67,8 +67,8 @@ public class AlunoController {
      * Lista todos os alunos cadastrados.
      * GET /api/listar-alunos
      */
-    @GetMapping({"/listar-alunos", "/alunos"})
-    @Operation(summary = "Listar todos os alunos", description = "Retorna a lista completa de alunos cadastrados consultando o aluno-service.")
+    @GetMapping("/listarAlunos")
+    @Operation(summary = "Listar alunos", description = "Retorna a lista completa de alunos cadastrados.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista recuperada com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
@@ -87,8 +87,8 @@ public class AlunoController {
      * Busca um aluno pelo ID (UUID).
      * GET /api/buscar-aluno/{id}
      */
-    @GetMapping({"/buscar-aluno/{id}", "/alunos/{id}"})
-    @Operation(summary = "Buscar aluno por ID", description = "Retorna os detalhes de um aluno específico pelo seu UUID.")
+    @GetMapping("/buscarAluno/{id}")
+    @Operation(summary = "Buscar aluno por ID", description = "Retorna os dados de um aluno pelo seu identificador.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Aluno encontrado"),
             @ApiResponse(responseCode = "404", description = "Aluno não encontrado"),
@@ -105,8 +105,8 @@ public class AlunoController {
      * Atualiza o status de matrícula de um aluno (ATIVO | INATIVO | INADIMPLENTE).
      * PATCH ou POST /api/atualizar-status-aluno/{id}
      */
-    @RequestMapping(value = {"/atualizar-status-aluno/{id}", "/alunos/{id}/status"}, method = {RequestMethod.PATCH, RequestMethod.POST})
-    @Operation(summary = "Atualizar status do aluno", description = "Altera o status cadastral para ATIVO, INATIVO ou INADIMPLENTE.")
+    @PatchMapping("/atualizarStatusAluno/{id}")
+    @Operation(summary = "Atualizar status do aluno", description = "Altera o status de matrícula do aluno para ATIVO, INATIVO ou INADIMPLENTE.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Status atualizado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Status inválido"),

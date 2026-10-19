@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api")
-@Tag(name = "1. Autenticação", description = "Endpoints para emissão de token JWT (padrão Aula 7)")
+@Tag(name = "Autenticação", description = "Emissão e renovação de token de acesso")
 public class AuthController {
 
     @Value("${jwt.secret}")
@@ -26,8 +26,8 @@ public class AuthController {
     @Value("${jwt.expiration-minutes:30}")
     private long expiracaoMinutos;
 
-    @PostMapping({"/autenticar", "/realizar-login"})
-    @Operation(summary = "Realizar login e emitir token JWT", description = "Recebe credenciais e retorna o Bearer token JWT para autorização nas demais rotas.")
+    @PostMapping("/autenticar")
+    @Operation(summary = "Autenticar", description = "Recebe credenciais e retorna o token de acesso para uso nas demais rotas.")
     public ResponseEntity<AutenticarResponse> autenticar(@Valid @RequestBody AutenticarRequest request) {
         String token = GeradorTokenJwt.gerarToken(request.username(), segredoJwt, expiracaoMinutos);
         return ResponseEntity.ok(new AutenticarResponse(
@@ -39,8 +39,8 @@ public class AuthController {
         ));
     }
 
-    @GetMapping("/gerar-token")
-    @Operation(summary = "Gerar token JWT rápido (laboratório)", description = "Emite um token JWT de demonstração com sujeito 'aluno' idêntico ao comando do terminal da Aula 7.")
+    @GetMapping("/gerarToken")
+    @Operation(summary = "Gerar token de demonstração", description = "Emite um token de acesso de demonstração com usuário padrão.")
     public ResponseEntity<AutenticarResponse> gerarTokenRapido() {
         String token = GeradorTokenJwt.gerarToken("aluno", segredoJwt, expiracaoMinutos);
         return ResponseEntity.ok(new AutenticarResponse(

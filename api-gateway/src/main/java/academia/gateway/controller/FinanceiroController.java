@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  */
 @RestController
 @RequestMapping("/api")
-@Tag(name = "4. Financeiro", description = "Operações para gerar mensalidades, consultar cobranças e registrar pagamentos")
+@Tag(name = "Financeiro", description = "Geração e pagamento de mensalidades")
 public class FinanceiroController {
 
     private static final long DEADLINE_SEGUNDOS = 5;
@@ -40,8 +40,8 @@ public class FinanceiroController {
      * Gera uma nova cobrança/mensalidade para um aluno.
      * POST /api/gerar-mensalidade
      */
-    @PostMapping({"/gerar-mensalidade", "/mensalidades"})
-    @Operation(summary = "Gerar mensalidade", description = "Cria uma cobrança vinculada a um aluno com valor e data de vencimento (status inicial: PENDENTE).")
+    @PostMapping("/gerarMensalidade")
+    @Operation(summary = "Gerar mensalidade", description = "Cria uma cobrança para o aluno com valor e data de vencimento.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Mensalidade gerada com sucesso"),
             @ApiResponse(responseCode = "400", description = "Dados da mensalidade inválidos"),
@@ -67,8 +67,8 @@ public class FinanceiroController {
      * Busca os detalhes de uma mensalidade pelo ID (UUID).
      * GET /api/buscar-mensalidade/{id}
      */
-    @GetMapping({"/buscar-mensalidade/{id}", "/mensalidades/{id}"})
-    @Operation(summary = "Buscar mensalidade por ID", description = "Retorna detalhes de status, valor e histórico de quitação da cobrança.")
+    @GetMapping("/buscarMensalidade/{id}")
+    @Operation(summary = "Buscar mensalidade por ID", description = "Retorna os detalhes de uma mensalidade pelo seu identificador.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mensalidade encontrada"),
             @ApiResponse(responseCode = "404", description = "Mensalidade não encontrada"),
@@ -85,8 +85,8 @@ public class FinanceiroController {
      * Lista todas as mensalidades vinculadas a um aluno.
      * GET /api/listar-mensalidades-aluno/{alunoId}
      */
-    @GetMapping({"/listar-mensalidades-aluno/{alunoId}", "/mensalidades/aluno/{alunoId}"})
-    @Operation(summary = "Listar mensalidades do aluno", description = "Retorna o histórico de todas as mensalidades (PENDENTE, PAGO, ATRASADO) de um aluno.")
+    @GetMapping("/listarMensalidadesAluno/{alunoId}")
+    @Operation(summary = "Listar mensalidades do aluno", description = "Retorna todas as mensalidades de um aluno com seus respectivos status.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mensalidades listadas com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
@@ -106,8 +106,8 @@ public class FinanceiroController {
      * Registra a quitação de uma mensalidade (PIX, CARTAO, DINHEIRO, BOLETO).
      * POST /api/registrar-pagamento-mensalidade/{id}
      */
-    @PostMapping({"/registrar-pagamento-mensalidade/{id}", "/mensalidades/{id}/pagamento"})
-    @Operation(summary = "Registrar pagamento da mensalidade", description = "Atualiza o status para PAGO e registra a forma de pagamento e data de quitação.")
+    @PostMapping("/registrarPagamentoMensalidade/{id}")
+    @Operation(summary = "Registrar pagamento da mensalidade", description = "Registra o pagamento e atualiza o status da mensalidade para PAGO.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pagamento registrado com sucesso"),
             @ApiResponse(responseCode = "400", description = "Forma de pagamento inválida"),
