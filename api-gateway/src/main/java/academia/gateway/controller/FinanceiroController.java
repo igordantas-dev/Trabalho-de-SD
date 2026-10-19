@@ -74,7 +74,7 @@ public class FinanceiroController {
             @ApiResponse(responseCode = "404", description = "Mensalidade não encontrada"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
-    public ResponseEntity<MensalidadeResponseDto> buscarMensalidade(@PathVariable String id) {
+    public ResponseEntity<MensalidadeResponseDto> buscarMensalidade(@PathVariable("id") String id) {
         var protoReq = BuscarMensalidadeRequest.newBuilder().setId(id).build();
         var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarMensalidade(protoReq);
@@ -83,7 +83,7 @@ public class FinanceiroController {
 
     /**
      * Lista todas as mensalidades vinculadas a um aluno.
-     * GET /api/listar-mensalidades-aluno/{alunoId}
+     * GET /api/listarMensalidadesAluno/{alunoId}
      */
     @GetMapping("/listarMensalidadesAluno/{alunoId}")
     @Operation(summary = "Listar mensalidades do aluno", description = "Retorna todas as mensalidades de um aluno com seus respectivos status.")
@@ -91,7 +91,7 @@ public class FinanceiroController {
             @ApiResponse(responseCode = "200", description = "Mensalidades listadas com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
-    public ResponseEntity<List<MensalidadeResponseDto>> listarMensalidadesPorAluno(@PathVariable String alunoId) {
+    public ResponseEntity<List<MensalidadeResponseDto>> listarMensalidadesPorAluno(@PathVariable("alunoId") String alunoId) {
         var protoReq = ListarMensalidadesPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
         var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarMensalidadesPorAluno(protoReq);
@@ -104,7 +104,7 @@ public class FinanceiroController {
 
     /**
      * Registra a quitação de uma mensalidade (PIX, CARTAO, DINHEIRO, BOLETO).
-     * POST /api/registrar-pagamento-mensalidade/{id}
+     * POST /api/registrarPagamentoMensalidade/{id}
      */
     @PostMapping("/registrarPagamentoMensalidade/{id}")
     @Operation(summary = "Registrar pagamento da mensalidade", description = "Registra o pagamento e atualiza o status da mensalidade para PAGO.")
@@ -116,7 +116,7 @@ public class FinanceiroController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<MensalidadeResponseDto> registrarPagamentoMensalidade(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody RegistrarPagamentoRequest dto) {
 
         var protoReq = academia.grpc.RegistrarPagamentoRequest.newBuilder()

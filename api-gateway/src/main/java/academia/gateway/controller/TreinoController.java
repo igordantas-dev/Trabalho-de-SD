@@ -102,7 +102,7 @@ public class TreinoController {
             @ApiResponse(responseCode = "404", description = "Ficha não encontrada"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
-    public ResponseEntity<FichaTreinoResponseDto> buscarFichaTreino(@PathVariable String id) {
+    public ResponseEntity<FichaTreinoResponseDto> buscarFichaTreino(@PathVariable("id") String id) {
         var protoReq = BuscarFichaTreinoRequest.newBuilder().setId(id).build();
         var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarFichaTreino(protoReq);
@@ -111,7 +111,7 @@ public class TreinoController {
 
     /**
      * Lista todas as fichas de treino vinculadas a um aluno.
-     * GET /api/listar-fichas-aluno/{alunoId}
+     * GET /api/listarFichasAluno/{alunoId}
      */
     @GetMapping("/listarFichasAluno/{alunoId}")
     @Operation(summary = "Listar fichas do aluno", description = "Retorna todas as fichas de treino de um aluno.")
@@ -119,7 +119,7 @@ public class TreinoController {
             @ApiResponse(responseCode = "200", description = "Fichas listadas com sucesso"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
-    public ResponseEntity<List<FichaTreinoResponseDto>> listarFichasPorAluno(@PathVariable String alunoId) {
+    public ResponseEntity<List<FichaTreinoResponseDto>> listarFichasPorAluno(@PathVariable("alunoId") String alunoId) {
         var protoReq = ListarFichasPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
         var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarFichasPorAluno(protoReq);
@@ -132,7 +132,7 @@ public class TreinoController {
 
     /**
      * Registra a conclusão do treino e salva as cargas reais utilizadas em cada exercício.
-     * POST /api/registrar-execucao-treino/{id}
+     * POST /api/registrarExecucaoTreino/{id}
      */
     @PostMapping("/registrarExecucaoTreino/{id}")
     @Operation(summary = "Registrar execução do treino", description = "Registra a conclusão do treino com as cargas reais utilizadas em cada exercício.")
@@ -142,7 +142,7 @@ public class TreinoController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<FichaTreinoResponseDto> registrarExecucaoTreino(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody RegistrarExecucaoRequest dto) {
 
         var protoReq = academia.grpc.RegistrarExecucaoRequest.newBuilder()

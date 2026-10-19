@@ -94,7 +94,7 @@ public class AlunoController {
             @ApiResponse(responseCode = "404", description = "Aluno não encontrado"),
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
-    public ResponseEntity<AlunoResponseDto> buscarAluno(@PathVariable String id) {
+    public ResponseEntity<AlunoResponseDto> buscarAluno(@PathVariable("id") String id) {
         var protoReq = BuscarAlunoRequest.newBuilder().setId(id).build();
         var stubComPrazo = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarAluno(protoReq);
@@ -103,9 +103,9 @@ public class AlunoController {
 
     /**
      * Atualiza o status de matrícula de um aluno (ATIVO | INATIVO | INADIMPLENTE).
-     * PATCH ou POST /api/atualizar-status-aluno/{id}
+     * PATCH ou POST /api/atualizarStatusAluno/{id}
      */
-    @PatchMapping("/atualizarStatusAluno/{id}")
+    @RequestMapping(value = "/atualizarStatusAluno/{id}", method = {RequestMethod.PATCH, RequestMethod.POST, RequestMethod.PUT})
     @Operation(summary = "Atualizar status do aluno", description = "Altera o status de matrícula do aluno para ATIVO, INATIVO ou INADIMPLENTE.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Status atualizado com sucesso"),
@@ -114,7 +114,7 @@ public class AlunoController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<AlunoResponseDto> atualizarStatusAluno(
-            @PathVariable String id,
+            @PathVariable("id") String id,
             @Valid @RequestBody AtualizarStatusAlunoRequest dto) {
 
         var protoReq = academia.grpc.AtualizarStatusAlunoRequest.newBuilder()

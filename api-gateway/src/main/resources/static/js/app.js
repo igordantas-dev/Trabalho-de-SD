@@ -94,20 +94,34 @@ class GymApp {
     const headers = options.headers || {};
     headers['Content-Type'] = 'application/json';
 
+    if (!this.token && !options.skipAuth) {
+      await this.obterTokenRapido();
+    }
+
     if (this.token && !options.skipAuth) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     try {
-      const response = await fetch(endpoint, {
+      let response = await fetch(endpoint, {
         ...options,
         headers
       });
 
-      // Se não autenticado (401)
-      if (response.status === 401) {
+      // Se não autenticado (401), tenta renovar o token automaticamente uma vez
+      if (response.status === 401 && !options._retriedAuth) {
         this.setToken(null);
-        this.mostrarToast('Sessão expirada. Faça login novamente.', 'danger');
+        await this.obterTokenRapido();
+        if (this.token) {
+          headers['Authorization'] = `Bearer ${this.token}`;
+          return await fetch(endpoint, {
+            ...options,
+            headers,
+            _retriedAuth: true
+          });
+        } else {
+          this.mostrarToast('Sessão expirada. Faça login novamente.', 'danger');
+        }
       }
 
       return response;
