@@ -1,4 +1,4 @@
-# Sistema Distribuído de Gestão de Academia — GymDist Pro
+# Sistema Distribuído de Gestão de Academia — GymFlow Pro
 
 Trabalho prático desenvolvido para a disciplina de **Sistemas Distribuídos** (Trabalho 2 — Exposição Web, API Gateway e Microsserviços Distribuídos).
 

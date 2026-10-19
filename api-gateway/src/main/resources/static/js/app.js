@@ -1,5 +1,5 @@
 /**
- * GymDist Pro — Lógica do Frontend SPA
+ * GymFlow Pro — Lógica do Frontend SPA
  * Comunicação direta com o API Gateway via REST/JSON com Bearer JWT.
  */
 
@@ -133,9 +133,14 @@ class GymApp {
       const resp = await this.apiRequest('/api/listarAlunos');
       if (resp.ok) {
         this.alunos = await resp.json();
+
+        // Verificação inteligente de inadimplência:
+        // Se o aluno estiver ATIVO mas tiver qualquer mensalidade ATRASADA, atualiza status para INADIMPLENTE
+        await this.sincronizarInadimplenciaAlunos();
+
         this.renderizarTabelaAlunos();
         this.atualizarSelectsAlunos();
-        this.atualizarMetricasDashboard();
+        await this.atualizarMetricasDashboard();
         this.renderizarAlunosRecentesDashboard();
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Erro ao listar alunos.' }));
@@ -143,6 +148,30 @@ class GymApp {
       }
     } catch (e) {
       console.error('Erro ao listar alunos:', e);
+    }
+  }
+
+  async sincronizarInadimplenciaAlunos() {
+    const hoje = new Date().toISOString().split('T')[0];
+    for (const aluno of this.alunos) {
+      if (aluno.status === 'ATIVO') {
+        try {
+          const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${aluno.id}`);
+          if (resp.ok) {
+            const mensalidades = await resp.json();
+            const temVencida = mensalidades.some(m => 
+              m.status === 'ATRASADO' || (m.status === 'PENDENTE' && m.dataVencimento && m.dataVencimento < hoje)
+            );
+            if (temVencida) {
+              await this.apiRequest(`/api/atualizarStatusAluno/${aluno.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: 'INADIMPLENTE' })
+              });
+              aluno.status = 'INADIMPLENTE';
+            }
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -181,7 +210,7 @@ class GymApp {
               <button class="btn btn-xs btn-action-money" onclick="app.abrirMensalidadesDoAluno('${aluno.id}')" title="Ver cobranças e mensalidades deste aluno">
                 💳 Mensalidades
               </button>
-              <button class="btn btn-xs btn-outline" onclick="app.alternarStatusAluno('${aluno.id}', '${aluno.status}')" title="Alternar status do aluno">
+              <button class="btn btn-xs btn-outline" onclick="app.abrirModalStatusAluno('${aluno.id}', '${aluno.nome}', '${aluno.status}')" title="Alterar status de matrícula (Ativo, Inadimplente, Inativo)">
                 🔄 Status
               </button>
             </div>
@@ -189,6 +218,30 @@ class GymApp {
         </tr>
       `;
     }).join('');
+  }
+
+  // Validador oficial de CPF
+  validarCpf(cpf) {
+    if (!cpf) return false;
+    const limpo = cpf.replace(/\D/g, '');
+    if (limpo.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(limpo)) return false; // Bloqueia repetidos como 111.111.111-11
+
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+      soma += parseInt(limpo.charAt(i)) * (10 - i);
+    }
+    let resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(limpo.charAt(9))) return false;
+
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+      soma += parseInt(limpo.charAt(i)) * (11 - i);
+    }
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    return resto === parseInt(limpo.charAt(10));
   }
 
   renderizarAlunosRecentesDashboard() {
@@ -221,6 +274,14 @@ class GymApp {
 
   async cadastrarAluno(dados) {
     this.ocultarAlerta('alerta-erro-aluno');
+
+    // Validação de CPF antes do envio
+    if (!this.validarCpf(dados.cpf)) {
+      this.mostrarAlerta('alerta-erro-aluno', 'CPF inválido! Verifique a quantidade de dígitos e o cálculo do CPF.', null, 'warning');
+      this.mostrarToast('CPF inválido. Digite um CPF válido de 11 dígitos.', 'warning');
+      return;
+    }
+
     const resp = await this.apiRequest('/api/cadastrarAluno', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -237,20 +298,33 @@ class GymApp {
     }
   }
 
-  async alternarStatusAluno(id, statusAtual) {
-    const novoStatus = statusAtual === 'ATIVO' ? 'INATIVO' : 'ATIVO';
+  abrirModalStatusAluno(id, nome, statusAtual) {
+    document.getElementById('status-aluno-id').value = id;
+    document.getElementById('status-aluno-nome').innerHTML = `Aluno: <strong>${nome}</strong>`;
+    const select = document.getElementById('select-novo-status-aluno');
+    if (select) select.value = statusAtual;
+    this.abrirModal('modal-status-aluno');
+  }
+
+  async atualizarStatusAluno(id, novoStatus) {
     const resp = await this.apiRequest(`/api/atualizarStatusAluno/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: novoStatus })
     });
 
     if (resp.ok) {
-      this.mostrarToast(`Status alterado para ${novoStatus}!`, 'success');
+      this.mostrarToast(`Status do aluno atualizado para ${novoStatus}!`, 'success');
+      this.fecharModal('modal-status-aluno');
       await this.carregarAlunos();
     } else {
-      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao alternar status do aluno' }));
+      const err = await resp.json().catch(() => ({ mensagem: 'Falha ao atualizar status do aluno' }));
       this.tratarErrosApi(err);
     }
+  }
+
+  async alternarStatusAluno(id, statusAtual) {
+    const novoStatus = statusAtual === 'ATIVO' ? 'INATIVO' : 'ATIVO';
+    await this.atualizarStatusAluno(id, novoStatus);
   }
 
   atualizarSelectsAlunos() {
@@ -689,18 +763,41 @@ class GymApp {
 
   // ─── Dashboard ────────────────────────────────────────────────────────────
 
-  atualizarMetricasDashboard() {
+  async atualizarMetricasDashboard() {
     const total = this.alunos.length;
     const ativos = this.alunos.filter(a => a.status === 'ATIVO').length;
     const inadimplentes = this.alunos.filter(a => a.status === 'INADIMPLENTE').length;
 
-    const elTotal = document.getElementById('metric-total-alunos');
-    const elAtivos = document.getElementById('metric-alunos-ativos');
-    const elInadimp = document.getElementById('metric-inadimplentes');
+    // Elementos nos cards de métricas
+    const elTotal = document.getElementById('dash-total-alunos') || document.getElementById('metric-total-alunos');
+    const elAtivos = document.getElementById('dash-alunos-ativos') || document.getElementById('metric-alunos-ativos');
+    const elInadimp = document.getElementById('dash-inadimplentes') || document.getElementById('metric-inadimplentes');
+    const elTreinos = document.getElementById('dash-total-treinos');
 
     if (elTotal) elTotal.textContent = total;
     if (elAtivos) elAtivos.textContent = ativos;
     if (elInadimp) elInadimp.textContent = inadimplentes;
+
+    // Contagem de fichas de treino
+    if (elTreinos && this.alunos.length > 0) {
+      try {
+        let totalFichas = 0;
+        const promises = this.alunos.map(a => 
+          this.apiRequest(`/api/listarFichasAluno/${a.id}`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+        );
+        const resultados = await Promise.all(promises);
+        resultados.forEach(lista => {
+          if (Array.isArray(lista)) totalFichas += lista.length;
+        });
+        elTreinos.textContent = totalFichas;
+      } catch (e) {
+        elTreinos.textContent = '—';
+      }
+    } else if (elTreinos) {
+      elTreinos.textContent = '0';
+    }
   }
 
   // ─── UI Helpers ───────────────────────────────────────────────────────────
@@ -916,6 +1013,16 @@ class GymApp {
       const id = document.getElementById('pagamento-mensalidade-id').value;
       const forma = document.getElementById('pagamento-forma').value;
       this.confirmarPagamento(id, forma);
+    });
+
+    // Form Alterar Status Aluno
+    document.getElementById('form-alterar-status-aluno')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('status-aluno-id').value;
+      const novoStatus = document.getElementById('select-novo-status-aluno').value;
+      if (id && novoStatus) {
+        this.atualizarStatusAluno(id, novoStatus);
+      }
     });
 
     // Preenche data de vencimento padrão para daqui 30 dias

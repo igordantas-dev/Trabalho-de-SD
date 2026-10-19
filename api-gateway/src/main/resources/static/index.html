@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GymDist — Gestão de Academia</title>
+  <title>GymFlow — Gestão de Academia</title>
   <meta name="description" content="Sistema de gestão de academia: cadastro de alunos, fichas de treino personalizadas com IA e controle financeiro de mensalidades.">
 
   <!-- Fontes Google Inter & Outfit -->
@@ -34,7 +34,7 @@
           </svg>
         </div>
         <div class="brand-text">
-          <h1>GymDist <span>Pro</span></h1>
+          <h1>GymFlow <span>Pro</span></h1>
           <p>Gestão Completa de Academia</p>
         </div>
       </div>
@@ -135,7 +135,7 @@
       <div class="dashboard-grid">
         <div class="card">
           <div class="card-header">
-            <h3>Bem-vindo ao GymDist Pro</h3>
+            <h3>Bem-vindo ao GymFlow Pro</h3>
             <span class="badge badge-success">Online</span>
           </div>
           <div class="card-body">
@@ -559,6 +559,38 @@
 
           <div class="form-actions mt-3">
             <button type="submit" class="btn btn-primary w-100">Confirmar Pagamento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Alteração de Status do Aluno -->
+  <div id="modal-status-aluno" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Alterar Status da Matrícula</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-status-aluno')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-alterar-status-aluno">
+          <input type="hidden" id="status-aluno-id">
+          <p id="status-aluno-nome" class="mb-3">Aluno: <strong>—</strong></p>
+
+          <div class="form-group">
+            <label for="select-novo-status-aluno">Novo Status *</label>
+            <select id="select-novo-status-aluno" class="form-control" required>
+              <option value="ATIVO">🟢 ATIVO (Acesso liberado)</option>
+              <option value="INADIMPLENTE">🟡 INADIMPLENTE (Mensalidade em aberto / atrasada)</option>
+              <option value="INATIVO">🔴 INATIVO (Matrícula trancada / cancelada)</option>
+            </select>
+            <small class="text-muted mt-1 d-block">
+              Dica: Alunos com mensalidades vencidas também podem ser atualizados para Inadimplente.
+            </small>
+          </div>
+
+          <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-primary w-100">Atualizar Status</button>
           </div>
         </form>
       </div>

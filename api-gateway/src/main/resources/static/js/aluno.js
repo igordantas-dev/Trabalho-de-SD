@@ -1,5 +1,5 @@
 /**
- * GymDist — Portal do Aluno
+ * GymFlow — Portal do Aluno
  * Visualização e execução de treinos próprios e acompanhamento de mensalidades.
  */
 
