@@ -53,10 +53,14 @@ public class SecurityConfig {
                                 "/v3/api-docs"
                         ).permitAll()
 
-                        // 3. Frontend Web SPA e arquivos estáticos
+                        // 3. Frontend Web SPA e arquivos estáticos (Admin e Aluno)
                         .requestMatchers(
                                 "/",
                                 "/index.html",
+                                "/admin",
+                                "/admin.html",
+                                "/aluno",
+                                "/aluno.html",
                                 "/css/**",
                                 "/js/**",
                                 "/assets/**",

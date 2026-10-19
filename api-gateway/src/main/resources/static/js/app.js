@@ -14,13 +14,16 @@ class GymApp {
     this.setupEventListeners();
     this.atualizarStatusJwt();
 
-    // Se não tiver token, gera automaticamente o token de laboratório
-    if (!this.token) {
-      await this.obterTokenRapido();
+    // Se houver token salvo, carrega dados
+    if (this.token) {
+      await this.carregarAlunos();
+    } else {
+      // Abre modal de login ou informa usuário
+      this.atualizarStatusJwt();
+      this.abrirModal('modal-login');
+      this.mostrarToast('Por favor, efetue login para gerenciar o sistema.', 'info');
     }
 
-    // Carrega dados iniciais
-    await this.carregarAlunos();
     this.adicionarExercicioLinha('Supino Reto', 'Peito', 4, 10, 30);
     this.adicionarExercicioLinha('Tríceps Corda', 'Tríceps', 3, 12, 15);
   }
@@ -31,15 +34,18 @@ class GymApp {
     const indicator = document.getElementById('jwt-indicator');
     const label = document.getElementById('jwt-label');
     const textarea = document.getElementById('token-textarea');
+    const btnLogin = document.getElementById('btn-login-modal');
 
     if (this.token) {
       indicator?.classList.add('active');
-      if (label) label.textContent = 'Sessão Ativa';
+      if (label) label.textContent = 'Admin Autenticado';
       if (textarea) textarea.value = this.token;
+      if (btnLogin) btnLogin.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sair`;
     } else {
       indicator?.classList.remove('active');
-      if (label) label.textContent = 'Sem Sessão';
+      if (label) label.textContent = 'Não Autenticado';
       if (textarea) textarea.value = '';
+      if (btnLogin) btnLogin.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Entrar`;
     }
   }
 
@@ -59,7 +65,8 @@ class GymApp {
       if (resp.ok) {
         const data = await resp.json();
         this.setToken(data.token);
-        this.mostrarToast('Sessão iniciada com sucesso!', 'success');
+        this.mostrarToast('Sessão iniciada como Administrador!', 'success');
+        await this.carregarAlunos();
       }
     } catch (e) {
       console.warn('Erro ao obter token:', e);
@@ -79,6 +86,7 @@ class GymApp {
         this.setToken(data.token);
         this.mostrarToast(`Bem-vindo, ${data.usuario}!`, 'success');
         this.fecharModal('modal-login');
+        await this.carregarAlunos();
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Credenciais inválidas' }));
         this.mostrarToast(`Falha no login: ${err.mensagem || 'Credenciais inválidas'}`, 'danger');
@@ -94,34 +102,21 @@ class GymApp {
     const headers = options.headers || {};
     headers['Content-Type'] = 'application/json';
 
-    if (!this.token && !options.skipAuth) {
-      await this.obterTokenRapido();
-    }
-
     if (this.token && !options.skipAuth) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     try {
-      let response = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         ...options,
         headers
       });
 
-      // Se não autenticado (401), tenta renovar o token automaticamente uma vez
-      if (response.status === 401 && !options._retriedAuth) {
+      // Se não autenticado (401), exige login
+      if (response.status === 401) {
         this.setToken(null);
-        await this.obterTokenRapido();
-        if (this.token) {
-          headers['Authorization'] = `Bearer ${this.token}`;
-          return await fetch(endpoint, {
-            ...options,
-            headers,
-            _retriedAuth: true
-          });
-        } else {
-          this.mostrarToast('Sessão expirada. Faça login novamente.', 'danger');
-        }
+        this.mostrarToast('Sessão expirada ou não autorizada. Faça login.', 'warning');
+        this.abrirModal('modal-login');
       }
 
       return response;
