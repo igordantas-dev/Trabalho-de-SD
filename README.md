@@ -188,6 +188,8 @@ Na raiz do repositório (`/home/igord/academia`):
 
 ### 3. Inicializar os Serviços (Terminais Separados ou VMs)
 
+*(Obs: nos comandos abaixo, substituir 'localhost' pelo IP público da VM.)*
+
 #### Terminal 1 — Microsserviço de Alunos (Porta gRPC 9091)
 ```bash
 export DB_URL="jdbc:postgresql://localhost:5432/academia"
