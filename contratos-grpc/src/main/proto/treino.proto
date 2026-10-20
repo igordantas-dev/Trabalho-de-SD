@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package academia.proto;
+
+option java_multiple_files = true;
+option java_package = "academia.grpc";
+
+// ==========================================
+// SERVIÇO 2: Gestão de Treinos
+// ==========================================
+service TreinoService {
+  // Cria uma nova ficha de treino manualmente para um aluno
+  rpc CriarFichaTreino (CriarFichaTreinoRequest) returns (FichaTreinoResponse);
+
+  // Busca uma ficha de treino pelo ID
+  rpc BuscarFichaTreino (BuscarFichaTreinoRequest) returns (FichaTreinoResponse);
+
+  // Lista todas as fichas de treino de um aluno
+  rpc ListarFichasPorAluno (ListarFichasPorAlunoRequest) returns (ListaFichasTreinoResponse);
+
+  // Registra a execução do treino: marca como concluído e salva as cargas reais usadas
+  rpc RegistrarExecucao (RegistrarExecucaoRequest) returns (FichaTreinoResponse);
+}
+
+// ─── Mensagens de Requisição ───────────────────────────────────────────────
+
+message ItemTreinoRequest {
+  string nome_exercicio = 1; // Ex: "Supino Reto"
+  string grupo_muscular = 2; // Ex: "Peito"
+  int32  series         = 3;
+  int32  repeticoes     = 4;
+  double carga_sugerida = 5; // kg — sugerida pelo instrutor ou pela última execução
+}
+
+message CriarFichaTreinoRequest {
+  string aluno_id            = 1; // UUID do aluno (referência lógica, sem FK de banco)
+  string titulo              = 2; // Ex: "Treino A — Peito e Tríceps"
+  string objetivo            = 3; // HIPERTROFIA | EMAGRECIMENTO | CONDICIONAMENTO
+  repeated ItemTreinoRequest itens = 4;
+}
+
+message BuscarFichaTreinoRequest {
+  string id = 1; // UUID da ficha
+}
+
+message ListarFichasPorAlunoRequest {
+  string aluno_id = 1; // UUID do aluno
+}
+
+// ─── Atualização de execução ──────────────────────────────────────────────
+// Enviado quando o aluno conclui o treino e informa as cargas reais utilizadas
+
+message ExecucaoItemRequest {
+  string item_id       = 1; // UUID do item dentro da ficha
+  double carga_usada   = 2; // kg realmente utilizado pelo aluno
+  bool   concluido     = 3; // true se o exercício foi realizado
+}
+
+message RegistrarExecucaoRequest {
+  string ficha_id              = 1; // UUID da ficha de treino
+  repeated ExecucaoItemRequest itens = 2;
+}
+
+// ─── Mensagens de Resposta ────────────────────────────────────────────────
+
+message ItemTreinoResponse {
+  string id             = 1;
+  string nome_exercicio = 2;
+  string grupo_muscular = 3;
+  int32  series         = 4;
+  int32  repeticoes     = 5;
+  double carga_sugerida = 6; // kg — referência para o aluno
+  double carga_usada    = 7; // kg — preenchido após execução (0 se ainda não realizado)
+  bool   concluido      = 8;
+}
+
+message FichaTreinoResponse {
+  string id                      = 1;
+  string aluno_id                = 2;
+  string titulo                  = 3;
+  string objetivo                = 4;
+  string status                  = 5; // PENDENTE | CONCLUIDO
+  string data_criacao            = 6;
+  string data_conclusao          = 7; // vazia até ser concluído
+  repeated ItemTreinoResponse itens = 8;
+  string mensagem                = 9;
+}
+
+message ListaFichasTreinoResponse {
+  repeated FichaTreinoResponse fichas = 1;
+}

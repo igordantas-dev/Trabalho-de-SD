@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymFlow — Gestão de Academia</title>
+  <meta name="description" content="Sistema de gestão de academia: cadastro de alunos, fichas de treino personalizadas com IA e controle financeiro de mensalidades.">
+
+  <!-- Fontes Google Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Barra de Notificações / Toasts -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Header Superior -->
+  <header class="main-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6.5 6.5 11 11"/>
+            <path d="m21 21-1-1"/>
+            <path d="m3 3 1 1"/>
+            <path d="m18 22 4-4"/>
+            <path d="m2 6 4-4"/>
+            <path d="m3 10 7-7"/>
+            <path d="m14 21 7-7"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>GymFlow <span>Pro</span></h1>
+          <p>Gestão Completa de Academia</p>
+        </div>
+      </div>
+
+      <!-- Status do Token JWT & Atalho Aluno -->
+      <div class="header-actions">
+        <a href="/aluno" class="btn btn-outline btn-sm" style="text-decoration:none;">
+          👤 Portal do Aluno
+        </a>
+
+        <div class="jwt-badge-wrapper" id="jwt-badge-wrapper">
+          <span class="status-indicator active" id="jwt-indicator"></span>
+          <span class="jwt-label" id="jwt-label">Sessão Ativa</span>
+        </div>
+
+        <button class="btn btn-primary btn-sm" id="btn-login-modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Sessão
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navegação por Abas -->
+  <nav class="nav-tabs-container">
+    <div class="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="tab-dashboard" role="tab" id="nav-dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Início
+      </button>
+      <button class="nav-tab" data-tab="tab-alunos" role="tab" id="nav-alunos">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Alunos
+      </button>
+      <button class="nav-tab" data-tab="tab-treinos" role="tab" id="nav-treinos">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg>
+        Fichas de Treino
+      </button>
+      <button class="nav-tab highlight" data-tab="tab-ia" role="tab" id="nav-ia">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><circle cx="19" cy="5" r="1.5"/></svg>
+        Treino IA ✨
+      </button>
+      <button class="nav-tab" data-tab="tab-financeiro" role="tab" id="nav-financeiro">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Mensalidades
+      </button>
+    </div>
+  </nav>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-content">
+
+    <!-- 1. ABA DASHBOARD -->
+    <section id="tab-dashboard" class="tab-pane active">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon blue">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-alunos">0</span>
+            <span class="metric-title">Alunos Cadastrados</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon emerald">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-alunos-ativos">0</span>
+            <span class="metric-title">Alunos Ativos</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12h12"/><path d="M6 5v14"/><path d="M18 5v14"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-total-treinos">—</span>
+            <span class="metric-title">Fichas de Treino</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon amber">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="metric-data">
+            <span class="metric-value" id="dash-inadimplentes">0</span>
+            <span class="metric-title">Inadimplentes</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações Rápidas -->
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>Bem-vindo ao GymFlow Pro</h3>
+            <span class="badge badge-success">Online</span>
+          </div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Gerencie seus alunos, crie fichas de treino personalizadas e controle as mensalidades em um único lugar.</p>
+            <div class="action-buttons-grid">
+              <button class="btn btn-primary" onclick="app.navegarParaAba('tab-alunos')" id="acao-cadastrar-aluno">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                Cadastrar Aluno
+              </button>
+              <button class="btn btn-secondary" onclick="app.navegarParaAba('tab-ia')" id="acao-gerar-treino-ia">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                Gerar Treino com IA ✨
+              </button>
+              <button class="btn btn-secondary" onclick="app.navegarParaAba('tab-treinos')" id="acao-ver-fichas">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M6 12h12"/></svg>
+                Ver Fichas de Treino
+              </button>
+              <button class="btn btn-outline" onclick="app.navegarParaAba('tab-financeiro')" id="acao-mensalidade">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Gerenciar Mensalidades
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Alunos Recentes</h3>
+            <button class="btn btn-sm btn-outline" id="btn-refresh-dashboard" onclick="app.carregarAlunos()">Atualizar</button>
+          </div>
+          <div class="card-body no-padding">
+            <div id="dashboard-alunos-recentes">
+              <p class="text-muted text-center py-4">Carregando...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ABA ALUNOS -->
+    <section id="tab-alunos" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Formulário de Cadastro -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Cadastrar Aluno</h3>
+          </div>
+          <div class="card-body">
+            <div id="alerta-erro-aluno" class="alert alert-danger d-none"></div>
+            <form id="form-cadastrar-aluno">
+              <div class="form-group">
+                <label for="aluno-nome">Nome Completo *</label>
+                <input type="text" id="aluno-nome" class="form-control" placeholder="Ex: Carlos Silva" required>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="aluno-cpf">CPF *</label>
+                  <input type="text" id="aluno-cpf" class="form-control" placeholder="123.456.789-00" required>
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-email">E-mail *</label>
+                  <input type="email" id="aluno-email" class="form-control" placeholder="carlos@email.com" required>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="aluno-telefone">Telefone</label>
+                  <input type="text" id="aluno-telefone" class="form-control" placeholder="(11) 98765-4321">
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-peso">Peso (kg)</label>
+                  <input type="number" step="0.1" id="aluno-peso" class="form-control" placeholder="80.5">
+                </div>
+                <div class="form-group col">
+                  <label for="aluno-altura">Altura (m)</label>
+                  <input type="number" step="0.01" id="aluno-altura" class="form-control" placeholder="1.78">
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-submit-aluno">
+                  Cadastrar Aluno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Lista de Alunos -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <h3>Alunos Cadastrados</h3>
+            <button class="btn btn-sm btn-outline" id="btn-refresh-alunos">
+              Atualizar Lista
+            </button>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-responsive">
+              <table class="data-table" id="tabela-alunos">
+                <thead>
+                  <tr>
+                    <th>Nome / CPF</th>
+                    <th>Email</th>
+                    <th>Biometria</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-alunos">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Nenhum aluno carregado ainda.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. ABA FICHAS DE TREINO -->
+    <section id="tab-treinos" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Criar Ficha Manual -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Nova Ficha de Treino</h3>
+          </div>
+          <div class="card-body">
+            <div id="alerta-erro-ficha" class="alert alert-danger d-none"></div>
+            <form id="form-criar-ficha">
+              <div class="form-group">
+                <label for="treino-aluno-select">Aluno *</label>
+                <select id="treino-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="treino-titulo">Título da Ficha *</label>
+                  <input type="text" id="treino-titulo" class="form-control" placeholder="Ex: Treino A — Peito e Tríceps" required>
+                </div>
+                <div class="form-group col">
+                  <label for="treino-objetivo">Objetivo *</label>
+                  <select id="treino-objetivo" class="form-control" required>
+                    <option value="HIPERTROFIA">Hipertrofia</option>
+                    <option value="EMAGRECIMENTO">Emagrecimento</option>
+                    <option value="CONDICIONAMENTO">Condicionamento</option>
+                    <option value="FORCA">Força</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Lista Dinâmica de Exercícios -->
+              <div class="exercicios-section">
+                <div class="flex-between mb-2">
+                  <label class="section-label">Exercícios</label>
+                  <button type="button" class="btn btn-xs btn-outline" id="btn-add-exercicio">+ Adicionar</button>
+                </div>
+                <div id="exercicios-container">
+                  <!-- Linhas de exercício inseridas via JS -->
+                </div>
+              </div>
+
+              <div class="form-actions mt-3">
+                <button type="submit" class="btn btn-primary" id="btn-submit-ficha">
+                  Criar Ficha de Treino
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Visualizador de Fichas e Registro de Execução -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <h3>Fichas do Aluno</h3>
+            <div class="flex gap-2 align-center">
+              <select id="select-filtro-aluno-treino" class="form-control form-control-sm w-auto">
+                <option value="">Selecionar aluno...</option>
+              </select>
+              <button class="btn btn-xs btn-outline" id="btn-refresh-fichas" type="button" title="Recarregar fichas">🔄 Recarregar</button>
+            </div>
+          </div>
+          <div class="card-body" id="fichas-container">
+            <p class="text-muted text-center py-4">Selecione um aluno para visualizar suas fichas e registrar a execução das cargas.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ABA GERADOR IA DE TREINOS -->
+    <section id="tab-ia" class="tab-pane">
+      <div class="card ia-card-banner">
+        <div class="card-body">
+          <div class="ia-banner-content">
+            <div class="ia-sparkle-icon">✨</div>
+            <div>
+              <h2>Assistente Inteligente de Treinos</h2>
+              <p>Gere fichas de treino 100% personalizadas com base na biometria e objetivos do aluno.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-columns-layout mt-3">
+        <!-- Formulário do Gerador IA -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Configurar Geração</h3>
+          </div>
+          <div class="card-body">
+            <div id="alerta-erro-ia" class="alert alert-danger d-none"></div>
+            <form id="form-gerar-ia">
+              <div class="form-group">
+                <label for="ia-aluno-select">Aluno *</label>
+                <select id="ia-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="ia-objetivo">Objetivo *</label>
+                  <select id="ia-objetivo" class="form-control" required>
+                    <option value="HIPERTROFIA">Hipertrofia (Ganho de Massa)</option>
+                    <option value="EMAGRECIMENTO">Emagrecimento (Perda de Gordura)</option>
+                    <option value="CONDICIONAMENTO">Condicionamento Físico</option>
+                    <option value="FORCA">Força Máxima</option>
+                  </select>
+                </div>
+                <div class="form-group col">
+                  <label for="ia-nivel">Nível do Praticante</label>
+                  <select id="ia-nivel" class="form-control">
+                    <option value="INICIANTE">Iniciante</option>
+                    <option value="INTERMEDIARIO" selected>Intermediário</option>
+                    <option value="AVANCADO">Avançado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="ia-foco">Grupamento Muscular</label>
+                <input type="text" id="ia-foco" class="form-control" placeholder="Ex: Peito e Tríceps, Costas, Full Body">
+              </div>
+
+              <div class="form-group">
+                <label for="ia-observacoes">Restrições / Observações</label>
+                <input type="text" id="ia-observacoes" class="form-control" placeholder="Ex: Evitar impacto nos joelhos">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-glow" id="btn-submit-ia">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                  Gerar Ficha com IA
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Resultado do Treino Gerado -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Ficha Gerada</h3>
+            <span class="badge badge-secondary" id="ia-status-badge">Aguardando</span>
+          </div>
+          <div class="card-body" id="ia-resultado-container">
+            <div class="empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              <p>Configure os parâmetros ao lado e clique no botão para gerar a ficha de treino personalizada.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ABA FINANCEIRO -->
+    <section id="tab-financeiro" class="tab-pane">
+      <div class="two-columns-layout">
+        <!-- Gerar Cobrança -->
+        <div class="card">
+          <div class="card-header">
+            <h3>Gerar Mensalidade</h3>
+          </div>
+          <div class="card-body">
+            <div id="alerta-erro-mensalidade" class="alert alert-danger d-none"></div>
+            <form id="form-gerar-mensalidade">
+              <div class="form-group">
+                <label for="fin-aluno-select">Aluno *</label>
+                <select id="fin-aluno-select" class="form-control" required>
+                  <option value="">Carregando alunos...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group col">
+                  <label for="fin-valor">Valor (R$) *</label>
+                  <input type="number" step="0.01" id="fin-valor" class="form-control" value="119.90" required>
+                </div>
+                <div class="form-group col">
+                  <label for="fin-vencimento">Vencimento *</label>
+                  <input type="date" id="fin-vencimento" class="form-control" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="fin-descricao">Descrição</label>
+                <input type="text" id="fin-descricao" class="form-control" placeholder="Ex: Mensalidade Outubro/2026 — Plano Silver">
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="btn-submit-mensalidade">
+                  Gerar Mensalidade
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Consulta e Pagamento -->
+        <div class="card">
+          <div class="card-header flex-between">
+            <h3>Mensalidades do Aluno</h3>
+            <div class="flex gap-2 align-center">
+              <select id="select-filtro-aluno-fin" class="form-control form-control-sm w-auto">
+                <option value="">Selecionar aluno...</option>
+              </select>
+              <button class="btn btn-xs btn-outline" id="btn-refresh-fin" type="button" title="Recarregar cobranças">🔄 Recarregar</button>
+            </div>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-responsive">
+              <table class="data-table" id="tabela-mensalidades">
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-mensalidades">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-4">Selecione um aluno acima para listar cobranças.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal de Autenticação / Login -->
+  <div id="modal-login" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Autenticação</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-login')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-login">
+          <div class="form-group">
+            <label for="login-username">Usuário</label>
+            <input type="text" id="login-username" class="form-control" value="aluno" required>
+          </div>
+          <div class="form-group">
+            <label for="login-senha">Senha</label>
+            <input type="password" id="login-senha" class="form-control" value="123456" required>
+          </div>
+
+          <div class="flex-column gap-2 mt-3">
+            <button type="submit" class="btn btn-primary w-100" id="btn-do-login">
+              Entrar
+            </button>
+            <button type="button" class="btn btn-secondary w-100" id="btn-quick-token">
+              ⚡ Entrar com Acesso Rápido
+            </button>
+            <button type="button" class="btn btn-outline-danger w-100" id="btn-clear-token">
+              Encerrar Sessão
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-3">
+          <label class="text-xs text-muted">Token de Sessão Atual:</label>
+          <textarea id="token-textarea" class="token-textarea" readonly rows="3" placeholder="Nenhuma sessão ativa"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Pagamento de Mensalidade -->
+  <div id="modal-pagamento" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Registrar Pagamento</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-pagamento')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-quitar-mensalidade">
+          <input type="hidden" id="pagamento-mensalidade-id">
+          <p id="pagamento-detalhes" class="mb-3 text-muted">Mensalidade: R$ 0,00</p>
+
+          <div class="form-group">
+            <label for="pagamento-forma">Forma de Pagamento *</label>
+            <select id="pagamento-forma" class="form-control" required>
+              <option value="PIX">PIX (Instantâneo)</option>
+              <option value="CARTAO">Cartão de Crédito / Débito</option>
+              <option value="DINHEIRO">Dinheiro em Espécie</option>
+              <option value="BOLETO">Boleto Bancário</option>
+            </select>
+          </div>
+
+          <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-primary w-100">Confirmar Pagamento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Alteração de Status do Aluno -->
+  <div id="modal-status-aluno" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Alterar Status da Matrícula</h3>
+        <button class="modal-close" onclick="app.fecharModal('modal-status-aluno')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-alterar-status-aluno">
+          <input type="hidden" id="status-aluno-id">
+          <p id="status-aluno-nome" class="mb-3">Aluno: <strong>—</strong></p>
+
+          <div class="form-group">
+            <label for="select-novo-status-aluno">Novo Status *</label>
+            <select id="select-novo-status-aluno" class="form-control" required>
+              <option value="ATIVO">🟢 ATIVO (Acesso liberado)</option>
+              <option value="INADIMPLENTE">🟡 INADIMPLENTE (Mensalidade em aberto / atrasada)</option>
+              <option value="INATIVO">🔴 INATIVO (Matrícula trancada / cancelada)</option>
+            </select>
+            <small class="text-muted mt-1 d-block">
+              Dica: Alunos com mensalidades vencidas também podem ser atualizados para Inadimplente.
+            </small>
+          </div>
+
+          <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-primary w-100">Atualizar Status</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

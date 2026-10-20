@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Área do Aluno — GymFlow</title>
+  <meta name="description" content="Acesse seus treinos personalizados, acompanhe suas cargas e visualize suas mensalidades.">
+
+  <!-- Fontes Google Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Estilos específicos da Área do Aluno */
+    .aluno-login-box {
+      max-width: 440px;
+      margin: 4rem auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 2.2rem;
+      box-shadow: var(--shadow-card);
+      backdrop-filter: blur(12px);
+    }
+    .aluno-header-profile {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .aluno-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.15rem;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+    .student-badge-info {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra de Notificações / Toasts -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Header Superior da Área do Aluno -->
+  <header class="main-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-logo" style="background: linear-gradient(135deg, #10b981, #3b82f6);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>GymFlow <span>Aluno</span></h1>
+          <p>Meu Espaço de Treinos & Mensalidades</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <a href="/admin" class="btn btn-outline btn-sm" style="text-decoration:none;">
+          ⚙️ Painel Admin
+        </a>
+
+        <!-- Área de identificação do Aluno logado -->
+        <div id="header-aluno-logado" style="display:none;" class="aluno-header-profile">
+          <div class="aluno-avatar" id="avatar-letra">A</div>
+          <div>
+            <strong id="header-nome-aluno" style="font-size:0.92rem; display:block; line-height:1.2;">Aluno</strong>
+            <span class="student-badge-info text-muted">
+              <span id="header-status-aluno" class="badge badge-success">Ativo</span>
+            </span>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btn-aluno-logout" title="Sair da conta">
+            Sair
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Container de Login (se não autenticado) -->
+  <div id="view-login-aluno" class="container">
+    <div class="aluno-login-box">
+      <div class="text-center mb-4">
+        <div style="width: 58px; height: 58px; margin: 0 auto 1rem; border-radius: 50%; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.35rem;">Acesso do Aluno</h2>
+        <p class="text-muted text-sm">Informe seus dados para acessar suas fichas de treino e mensalidades.</p>
+      </div>
+
+      <form id="form-login-aluno">
+        <div class="form-group mb-3">
+          <label for="login-identificador">Selecione ou Informe sua Conta *</label>
+          <select id="login-aluno-select" class="form-control" required>
+            <option value="">Carregando alunos cadastrados...</option>
+          </select>
+          <small class="text-muted mt-1 d-block">Identifique-se com seu perfil cadastrado na academia.</small>
+        </div>
+
+        <div class="form-group mb-4">
+          <label for="login-senha-aluno">Senha de Acesso</label>
+          <input type="password" id="login-senha-aluno" class="form-control" value="123456" placeholder="Sua senha">
+          <small class="text-muted mt-1 d-block">Senha padrão de demonstração: <code>123456</code></small>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2" id="btn-entrar-aluno">
+          Entrar no Meu Espaço
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal do Aluno (exibido apenas após login) -->
+  <div id="view-portal-aluno" style="display:none;">
+
+    <!-- Navegação por Abas do Aluno -->
+    <nav class="nav-tabs-container">
+      <div class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="tab-meus-treinos" role="tab" id="nav-meus-treinos">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg>
+          Minhas Fichas de Treino
+        </button>
+        <button class="nav-tab" data-tab="tab-minhas-mensalidades" role="tab" id="nav-minhas-mensalidades">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Minhas Mensalidades
+        </button>
+        <button class="nav-tab" data-tab="tab-meu-perfil" role="tab" id="nav-meu-perfil">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Meus Dados Cadastrais
+        </button>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <!-- 1. ABA MEUS TREINOS -->
+      <section id="tab-meus-treinos" class="tab-pane active">
+        <div class="card">
+          <div class="card-header flex-between">
+            <div>
+              <h2>Fichas de Treino Prescritas</h2>
+              <p class="text-muted text-sm">Visualize seus exercícios, ajuste os pesos reais utilizados e registre sua execução.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" id="btn-atualizar-meus-treinos">
+              🔄 Recarregar Treinos
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="fichas-aluno-container">
+              <p class="text-muted text-center py-4">⏳ Carregando seus treinos...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. ABA MINHAS MENSALIDADES -->
+      <section id="tab-minhas-mensalidades" class="tab-pane">
+        <div class="card">
+          <div class="card-header flex-between">
+            <div>
+              <h2>Minhas Cobranças & Mensalidades</h2>
+              <p class="text-muted text-sm">Acompanhe seus pagamentos e faturas em aberto.</p>
+            </div>
+            <button class="btn btn-sm btn-outline" id="btn-atualizar-minhas-mensalidades">
+              🔄 Recarregar Mensalidades
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Data Quitação</th>
+                    <th>Forma</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-minhas-mensalidades">
+                  <tr><td colspan="7" class="text-center text-muted py-4">⏳ Carregando mensalidades...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. ABA MEUS DADOS -->
+      <section id="tab-meu-perfil" class="tab-pane">
+        <div class="card" style="max-width: 680px; margin: 0 auto;">
+          <div class="card-header">
+            <h2>Dados Pessoais e Biometria</h2>
+            <p class="text-muted text-sm">Informações registradas no cadastro da academia.</p>
+          </div>
+          <div class="card-body">
+            <div class="grid-2-col gap-3">
+              <div>
+                <label class="text-xs text-muted">Nome Completo</label>
+                <p><strong id="perfil-nome" style="font-size:1.1rem;">—</strong></p>
+              </div>
+              <div>
+                <label class="text-xs text-muted">Status da Matrícula</label>
+                <p id="perfil-status"><span class="badge badge-success">Ativo</span></p>
+              </div>
+              <div>
+                <label class="text-xs text-muted">CPF</label>
+                <p id="perfil-cpf">—</p>
+              </div>
+              <div>
+                <label class="text-xs text-muted">E-mail</label>
+                <p id="perfil-email">—</p>
+              </div>
+              <div>
+                <label class="text-xs text-muted">Telefone</label>
+                <p id="perfil-telefone">—</p>
+              </div>
+              <div>
+                <label class="text-xs text-muted">Biometria (Peso / Altura)</label>
+                <p id="perfil-biometria">—</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal de Pagamento de Mensalidade pelo Aluno -->
+  <div id="modal-pagamento-aluno" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Pagar Mensalidade</h3>
+        <button class="modal-close" onclick="alunoApp.fecharModal('modal-pagamento-aluno')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-aluno-pagar">
+          <input type="hidden" id="aluno-pagamento-id">
+          <p id="aluno-pagamento-detalhes" class="mb-3 text-muted">Mensalidade: R$ 0,00</p>
+
+          <div class="form-group">
+            <label for="aluno-pagamento-forma">Escolha a Forma de Pagamento *</label>
+            <select id="aluno-pagamento-forma" class="form-control" required>
+              <option value="PIX">PIX (Instantâneo)</option>
+              <option value="CARTAO">Cartão de Crédito</option>
+              <option value="DINHEIRO">Dinheiro</option>
+              <option value="BOLETO">Boleto Bancário</option>
+            </select>
+          </div>
+
+          <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-primary w-100">Confirmar Pagamento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/aluno.js"></script>
+</body>
+</html>

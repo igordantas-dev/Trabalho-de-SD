@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package academia.proto;
+
+option java_multiple_files = true;
+option java_package = "academia.grpc";
+
+// ==========================================
+// SERVIÇO 1: Gestão de Alunos
+// ==========================================
+service AlunoService {
+  // Cadastra um novo aluno
+  rpc CadastrarAluno (CadastrarAlunoRequest) returns (AlunoResponse);
+
+  // Busca um aluno pelo ID
+  rpc BuscarAluno (BuscarAlunoRequest) returns (AlunoResponse);
+
+  // Lista todos os alunos
+  rpc ListarAlunos (ListarAlunosRequest) returns (ListaAlunosResponse);
+
+  // Atualiza o status de matrícula de um aluno
+  rpc AtualizarStatusAluno (AtualizarStatusAlunoRequest) returns (AlunoResponse);
+}
+
+// ─── Mensagens de Requisição ───────────────────────────────────────────────
+
+message CadastrarAlunoRequest {
+  string nome     = 1; // Obrigatório
+  string cpf      = 2; // Obrigatório, único
+  string email    = 3; // Obrigatório, único
+  string telefone = 4;
+  double peso     = 5; // kg
+  double altura   = 6; // metros
+}
+
+message BuscarAlunoRequest {
+  string id = 1; // UUID do aluno
+}
+
+message ListarAlunosRequest {
+  // reservado para paginação futura; por ora retorna todos
+}
+
+message AtualizarStatusAlunoRequest {
+  string id     = 1; // UUID do aluno
+  string status = 2; // ATIVO | INATIVO | INADIMPLENTE
+}
+
+// ─── Mensagens de Resposta ────────────────────────────────────────────────
+
+message AlunoResponse {
+  string id       = 1;
+  string nome     = 2;
+  string cpf      = 3;
+  string email    = 4;
+  string telefone = 5;
+  double peso     = 6;
+  double altura   = 7;
+  string status   = 8; // ATIVO | INATIVO | INADIMPLENTE
+  string mensagem = 9; // Mensagem de contexto da operação
+}
+
+message ListaAlunosResponse {
+  repeated AlunoResponse alunos = 1;
+}
