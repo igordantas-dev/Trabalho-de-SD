@@ -11,7 +11,7 @@ import java.util.Date;
 
 /**
  * Utilitário autônomo para geração de tokens JWT assinado com algoritmo HMAC-SHA256 (HS256).
- * Segue exatamente o padrão didático apresentado na Aula 7.
+ * Segue exatamente o padrão didático apresentado.
  *
  * Pode ser executado via terminal ou invocado pelo serviço de autenticação do Gateway.
  */
@@ -46,7 +46,7 @@ public class GeradorTokenJwt {
     }
 
     /**
-     * Método main para execução via terminal, conforme especificado na Aula 7:
+     * Método main para execução via terminal, conforme especificado:
      * java -Dloader.main=academia.gateway.seguranca.GeradorTokenJwt ...
      */
     public static void main(String[] args) {

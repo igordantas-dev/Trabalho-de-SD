@@ -1,7 +1,7 @@
 package academia.gateway.dto;
 
 /**
- * DTO com o resultado da autenticação contendo o token JWT gerado (Aula 7).
+ * DTO com o resultado da autenticação contendo o token JWT gerado.
  */
 public record AutenticarResponse(
         String token,

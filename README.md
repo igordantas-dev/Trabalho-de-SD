@@ -63,7 +63,7 @@ A arquitetura adota o padrão **"REST na Borda, gRPC por Dentro"**, garantindo f
 
 ---
 
-## 🔒 Segurança & Autenticação JWT (Padrão Aula 7)
+## 🔒 Segurança & Autenticação JWT
 
 O sistema implementa autenticação **Stateless** via Spring Security e OAuth2 Resource Server:
 - **Algoritmo:** HMAC-SHA256 (`HS256`).
@@ -81,9 +81,9 @@ O sistema implementa autenticação **Stateless** via Spring Security e OAuth2 R
    ```
 2. **Via Endpoint Rápido de Laboratório:**
    ```bash
-   curl http://localhost:8080/api/gerar-token
+   curl http://localhost:8080/api/gerarToken
    ```
-3. **Via Linha de Comando (idêntico à Aula 7):**
+3. **Via Linha de Comando:**
    ```bash
    ./mvnw exec:java -pl api-gateway -Dexec.mainClass="academia.gateway.seguranca.GeradorTokenJwt"
    ```
@@ -95,6 +95,7 @@ O sistema implementa autenticação **Stateless** via Spring Security e OAuth2 R
 O API Gateway disponibiliza a documentação viva de todas as rotas através do Swagger UI:
 - **URL de Acesso:** `http://localhost:8080/swagger-ui.html`
 - **JSON OpenAPI:** `http://localhost:8080/v3/api-docs`
+- **Importação Direta no Postman:** `http://localhost:8080/v3/api-docs.json` — cole esta URL diretamente no Postman via **Import > Link** para importar todos os endpoints automaticamente.
 - **Autenticação no Swagger:** Clique no botão verde **"Authorize"** no topo da página e insira seu token no formato:
   ```text
   Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -102,38 +103,38 @@ O API Gateway disponibiliza a documentação viva de todas as rotas através do 
 
 ---
 
-## 🌐 Endpoints REST (Rotas Iniciadas por Verbos)
+## 🌐 Endpoints REST (Rotas em camelCase)
 
-Todas as rotas da API foram projetadas iniciando por verbos para facilitar o entendimento:
+Todas as rotas da API seguem a convenção **camelCase** para facilitar a integração:
 
 ### 1. Autenticação
 - `POST /api/autenticar` — Realiza login e emite token JWT (`200 OK`).
-- `GET /api/gerar-token` — Emite token rápido de demonstração (`200 OK`).
+- `GET /api/gerarToken` — Emite token rápido de demonstração (`200 OK`).
 
 ### 2. Gestão de Alunos
-- `POST /api/cadastrar-aluno` — Cadastra novo aluno (`201 Created` / `400 Bad Request` / `409 Conflict`).
-- `GET /api/listar-alunos` — Lista todos os alunos cadastrados (`200 OK`).
-- `GET /api/buscar-aluno/{id}` — Busca detalhes de um aluno por UUID (`200 OK` / `404 Not Found`).
-- `PATCH /api/atualizar-status-aluno/{id}` — Atualiza status de matrícula (`200 OK`).
+- `POST /api/cadastrarAluno` — Cadastra novo aluno (`201 Created` / `400 Bad Request` / `409 Conflict`).
+- `GET /api/listarAlunos` — Lista todos os alunos cadastrados (`200 OK`).
+- `GET /api/buscarAluno/{id}` — Busca detalhes de um aluno por UUID (`200 OK` / `404 Not Found`).
+- `PATCH /api/atualizarStatusAluno/{id}` — Atualiza status de matrícula (`200 OK`).
 
 ### 3. Fichas de Treino & Inteligência Artificial
-- `POST /api/criar-ficha-treino` — Criação manual de ficha com exercícios (`201 Created`).
-- `POST /api/gerar-treino-ia` — **Geração inteligente de treino assistida por IA** (`200 OK`).
-- `GET /api/buscar-ficha-treino/{id}` — Busca detalhes de uma ficha (`200 OK` / `404 Not Found`).
-- `GET /api/listar-fichas-aluno/{alunoId}` — Lista histórico de treinos do aluno (`200 OK`).
-- `POST /api/registrar-execucao-treino/{id}` — **Conclui treino e salva as cargas reais utilizadas** (`200 OK`).
+- `POST /api/criarFichaTreino` — Criação manual de ficha com exercícios (`201 Created`).
+- `POST /api/gerarTreinoIa` — **Geração inteligente de treino assistida por IA** (`200 OK`).
+- `GET /api/buscarFichaTreino/{id}` — Busca detalhes de uma ficha (`200 OK` / `404 Not Found`).
+- `GET /api/listarFichasAluno/{alunoId}` — Lista histórico de treinos do aluno (`200 OK`).
+- `POST /api/registrarExecucaoTreino/{id}` — **Conclui treino e salva as cargas reais utilizadas** (`200 OK`).
 
 ### 4. Gestão Financeira
-- `POST /api/gerar-mensalidade` — Gera cobrança com vencimento (`201 Created`).
-- `GET /api/buscar-mensalidade/{id}` — Busca mensalidade por UUID (`200 OK` / `404 Not Found`).
-- `GET /api/listar-mensalidades-aluno/{alunoId}` — Lista histórico de cobranças do aluno (`200 OK`).
-- `POST /api/registrar-pagamento-mensalidade/{id}` — Quita cobrança (`PIX`, `CARTAO`, `DINHEIRO`, `BOLETO`) (`200 OK` / `422 Unprocessable`).
+- `POST /api/gerarMensalidade` — Gera cobrança com vencimento (`201 Created`).
+- `GET /api/buscarMensalidade/{id}` — Busca mensalidade por UUID (`200 OK` / `404 Not Found`).
+- `GET /api/listarMensalidadesAluno/{alunoId}` — Lista histórico de cobranças do aluno (`200 OK`).
+- `POST /api/registrarPagamentoMensalidade/{id}` — Quita cobrança (`PIX`, `CARTAO`, `DINHEIRO`, `BOLETO`) (`200 OK` / `422 Unprocessable`).
 
 ---
 
 ## 🤖 Geração de Treinos com Inteligência Artificial
 
-O endpoint `POST /api/gerar-treino-ia` orquestra uma integração de alto nível entre os microsserviços:
+O endpoint `POST /api/gerarTreinoIa` orquestra uma integração de alto nível entre os microsserviços:
 1. O Gateway consulta a biometria do aluno (peso, altura, idade, histórico de cargas) no `aluno-service` via gRPC.
 2. A inteligência sintetiza a rotina de exercícios com base no objetivo (`HIPERTROFIA`, `EMAGRECIMENTO`, `CONDICIONAMENTO`, `FORCA`), nível do praticante (`INICIANTE`, `INTERMEDIARIO`, `AVANCADO`) e agrupamento muscular desejado.
 3. Se a chave `GEMINI_API_KEY` estiver configurada, o modelo de linguagem do Google Gemini é acionado; se estiver offline no laboratório, o **motor heurístico esportivo local** sintetiza o treino automaticamente, garantindo que a apresentação nunca falhe.
@@ -232,8 +233,14 @@ export DB_PASSWORD="sua_senha_do_postgres"
 
 ## 🧪 Como Testar no Postman
 
+### Opção 1 — Importação via URL (Recomendado)
+1. Abra o Postman e clique em **Import > Link**.
+2. Cole a URL: `http://localhost:8080/v3/api-docs`
+3. O Postman importará automaticamente todos os endpoints documentados pelo Swagger/OpenAPI.
+
+### Opção 2 — Importação via Arquivo
 Uma coleção completa e atualizada está pronta para importação no arquivo:
-👉 [`academia-postman-collection.json`](file:///home/igord/academia/academia-postman-collection.json)
+👉 [`academia-postman-collection.json`](academia-postman-collection.json)
 
 1. Abra o Postman e clique em **Import**.
 2. Selecione o arquivo `academia-postman-collection.json`.

@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Configuração de segurança do API Gateway com Spring Security e OAuth2 Resource Server.
- * Baseado no modelo ensinado na Aula 7:
  *   - Validação de tokens JWT assinados via algoritmo HS256.
  *   - API totalmente Stateless (sem sessões HTTP em memória).
  *   - Rotas /api/** protegidas (retornam 401 Unauthorized se token ausente ou inválido).
@@ -94,7 +93,7 @@ public class SecurityConfig {
     }
 
     /**
-     * Resposta clara em JSON com status 401 e cabeçalho WWW-Authenticate padrão (Aula 7).
+     * Resposta clara em JSON com status 401 e cabeçalho WWW-Authenticate padrão.
      */
     @Bean
     public AuthenticationEntryPoint customAuthenticationEntryPoint() {

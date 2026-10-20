@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "academia-distribuida-apis-v2",
-		"name": "Academia - Sistema Distribuído (V2 com Verbos & JWT)",
-		"description": "Coleção de endpoints REST do API Gateway (Porta 8080) com autenticação JWT (Aula 7), todas as rotas iniciando por verbos, Swagger integrado e chamadas gRPC internas para os 3 microsserviços.",
+		"_postman_id": "gymflow-pro-apis-v2",
+		"name": "GymFlow Pro — Sistema Distribuído (API Gateway + Microsserviços gRPC)",
+		"description": "Coleção de endpoints REST do API Gateway (Porta 8080) com autenticação JWT, rotas em camelCase, Swagger integrado e chamadas gRPC internas para os 3 microsserviços (aluno-service, treino-service, financeiro-service).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"auth": {
@@ -21,6 +21,23 @@
 			"item": [
 				{
 					"name": "Realizar Login / Autenticar",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    if (json.token) {",
+									"        pm.collectionVariables.set('jwtToken', json.token);",
+									"        console.log('Token JWT capturado automaticamente!');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"auth": { "type": "noauth" },
 						"method": "POST",
@@ -39,18 +56,35 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "autenticar"]
 						},
-						"description": "Gera e retorna o token JWT assinado com HS256 (30 minutos de validade). Copie o token retornado para a variável {{jwtToken}}."
+						"description": "Gera e retorna o token JWT assinado com HS256 (30 minutos de validade). O token é capturado automaticamente para a variável {{jwtToken}}."
 					}
 				},
 				{
 					"name": "Gerar Token Rápido de Laboratório",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var json = pm.response.json();",
+									"    if (json.token) {",
+									"        pm.collectionVariables.set('jwtToken', json.token);",
+									"        console.log('Token JWT capturado automaticamente!');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"auth": { "type": "noauth" },
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/gerar-token",
+							"raw": "{{baseUrl}}/api/gerarToken",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerar-token"]
+							"path": ["api", "gerarToken"]
 						},
 						"description": "Emite instantaneamente um token JWT de demonstração."
 					}
@@ -72,9 +106,9 @@
 							"raw": "{\n  \"nome\": \"Carlos Silva\",\n  \"cpf\": \"123.456.789-00\",\n  \"email\": \"carlos.silva@email.com\",\n  \"telefone\": \"(11) 98765-4321\",\n  \"peso\": 82.5,\n  \"altura\": 1.78\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/cadastrar-aluno",
+							"raw": "{{baseUrl}}/api/cadastrarAluno",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "cadastrar-aluno"]
+							"path": ["api", "cadastrarAluno"]
 						}
 					}
 				},
@@ -83,9 +117,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/listar-alunos",
+							"raw": "{{baseUrl}}/api/listarAlunos",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "listar-alunos"]
+							"path": ["api", "listarAlunos"]
 						}
 					}
 				},
@@ -94,9 +128,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/buscar-aluno/:id",
+							"raw": "{{baseUrl}}/api/buscarAluno/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscar-aluno", ":id"],
+							"path": ["api", "buscarAluno", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DO_ALUNO" }
 							]
@@ -115,9 +149,9 @@
 							"raw": "{\n  \"status\": \"ATIVO\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/atualizar-status-aluno/:id",
+							"raw": "{{baseUrl}}/api/atualizarStatusAluno/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "atualizar-status-aluno", ":id"],
+							"path": ["api", "atualizarStatusAluno", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DO_ALUNO" }
 							]
@@ -141,9 +175,9 @@
 							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"titulo\": \"Treino A — Peito e Tríceps\",\n  \"objetivo\": \"HIPERTROFIA\",\n  \"itens\": [\n    {\n      \"nomeExercicio\": \"Supino Reto\",\n      \"grupoMuscular\": \"Peito\",\n      \"series\": 4,\n      \"repeticoes\": 10,\n      \"cargaSugerida\": 30.0\n    },\n    {\n      \"nomeExercicio\": \"Tríceps Corda\",\n      \"grupoMuscular\": \"Tríceps\",\n      \"series\": 3,\n      \"repeticoes\": 12,\n      \"cargaSugerida\": 15.0\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/criar-ficha-treino",
+							"raw": "{{baseUrl}}/api/criarFichaTreino",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "criar-ficha-treino"]
+							"path": ["api", "criarFichaTreino"]
 						}
 					}
 				},
@@ -159,9 +193,9 @@
 							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"objetivo\": \"HIPERTROFIA\",\n  \"nivel\": \"INTERMEDIARIO\",\n  \"focoMuscular\": \"Peito e Tríceps\",\n  \"observacoes\": \"Foco em hipertrofia miofibrilar\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/gerar-treino-ia",
+							"raw": "{{baseUrl}}/api/gerarTreinoIa",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerar-treino-ia"]
+							"path": ["api", "gerarTreinoIa"]
 						}
 					}
 				},
@@ -170,9 +204,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/buscar-ficha-treino/:id",
+							"raw": "{{baseUrl}}/api/buscarFichaTreino/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscar-ficha-treino", ":id"],
+							"path": ["api", "buscarFichaTreino", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DA_FICHA" }
 							]
@@ -184,9 +218,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/listar-fichas-aluno/:alunoId",
+							"raw": "{{baseUrl}}/api/listarFichasAluno/:alunoId",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "listar-fichas-aluno", ":alunoId"],
+							"path": ["api", "listarFichasAluno", ":alunoId"],
 							"variable": [
 								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
 							]
@@ -205,9 +239,9 @@
 							"raw": "{\n  \"itens\": [\n    {\n      \"itemId\": \"UUID_DO_ITEM_1\",\n      \"cargaUsada\": 35.0,\n      \"concluido\": true\n    }\n  ]\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/registrar-execucao-treino/:id",
+							"raw": "{{baseUrl}}/api/registrarExecucaoTreino/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "registrar-execucao-treino", ":id"],
+							"path": ["api", "registrarExecucaoTreino", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DA_FICHA" }
 							]
@@ -231,9 +265,9 @@
 							"raw": "{\n  \"alunoId\": \"UUID_DO_ALUNO\",\n  \"valor\": 119.90,\n  \"dataVencimento\": \"2026-11-15\",\n  \"descricao\": \"Mensalidade Novembro/2026\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/gerar-mensalidade",
+							"raw": "{{baseUrl}}/api/gerarMensalidade",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerar-mensalidade"]
+							"path": ["api", "gerarMensalidade"]
 						}
 					}
 				},
@@ -242,9 +276,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/buscar-mensalidade/:id",
+							"raw": "{{baseUrl}}/api/buscarMensalidade/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscar-mensalidade", ":id"],
+							"path": ["api", "buscarMensalidade", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
 							]
@@ -256,9 +290,9 @@
 					"request": {
 						"method": "GET",
 						"url": {
-							"raw": "{{baseUrl}}/api/listar-mensalidades-aluno/:alunoId",
+							"raw": "{{baseUrl}}/api/listarMensalidadesAluno/:alunoId",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "listar-mensalidades-aluno", ":alunoId"],
+							"path": ["api", "listarMensalidadesAluno", ":alunoId"],
 							"variable": [
 								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
 							]
@@ -277,9 +311,9 @@
 							"raw": "{\n  \"formaPagamento\": \"PIX\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/registrar-pagamento-mensalidade/:id",
+							"raw": "{{baseUrl}}/api/registrarPagamentoMensalidade/:id",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "registrar-pagamento-mensalidade", ":id"],
+							"path": ["api", "registrarPagamentoMensalidade", ":id"],
 							"variable": [
 								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
 							]

@@ -54,7 +54,7 @@
             <artifactId>grpc-netty-shaded</artifactId>
         </dependency>
 
-        <!-- Spring Security e OAuth2 Resource Server para validação de JWT (Aula 7) -->
+        <!-- Spring Security e OAuth2 Resource Server para validação de JWT -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
