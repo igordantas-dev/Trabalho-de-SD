@@ -103,9 +103,9 @@ public class AlunoController {
 
     /**
      * Atualiza o status de matrícula de um aluno (ATIVO | INATIVO | INADIMPLENTE).
-     * PATCH ou POST /api/atualizarStatusAluno/{id}
+     * POST /api/atualizarStatusAluno/{id}
      */
-    @RequestMapping(value = "/atualizarStatusAluno/{id}", method = {RequestMethod.PATCH, RequestMethod.POST, RequestMethod.PUT})
+    @PostMapping("/atualizarStatusAluno/{id}")
     @Operation(summary = "Atualizar status do aluno", description = "Altera o status de matrícula do aluno para ATIVO, INATIVO ou INADIMPLENTE.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Status atualizado com sucesso"),
