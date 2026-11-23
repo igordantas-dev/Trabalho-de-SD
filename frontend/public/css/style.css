@@ -905,3 +905,8 @@ select.form-control {
 @media (max-width: 960px) {
   .paineis-layout { grid-template-columns: minmax(0, 1fr); }
 }
+
+.mensalidades-portal { min-width: 740px; }
+.mensalidades-portal th, .mensalidades-portal td { vertical-align: middle; }
+.mensalidades-portal th:not(:first-child), .mensalidades-portal td:not(:first-child) { white-space: nowrap; }
+.mensalidades-portal td:first-child { min-width: 200px; overflow-wrap: anywhere; }

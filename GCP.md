@@ -196,3 +196,32 @@ Nao e necessaria alteracao de schema para estas correcoes.
 Depois da publicacao, execute Test-Gymflow.ps1 com -BaseUrl apontando para a URL
 publica do frontend e confira no navegador os paineis, o portal, a saida e o
 salvamento parcial/completo de uma ficha com pelo menos dois exercicios.
+
+
+## Atualizar o portal e o Gateway pelo Cloud Build
+
+O envio pelo Docker do Cloud Shell falhou por recusa de conexao, enquanto a
+publicacao pelo Cloud Build foi validada. Para publicar as correcoes do portal e
+a regra de matricula inativa, use a develop atualizada:
+
+```bash
+gcloud builds submit . --project=sd2026 --region=us-central1 \
+  --config=cloudbuild/frontend-gateway.json --ignore-file=.dockerignore \
+  --substitutions="_TAG=$(git rev-parse --short HEAD)"
+```
+
+Somente depois de STATUS: SUCCESS, atualize as imagens dos servicos:
+
+```bash
+TAG="$(git rev-parse --short HEAD)"
+gcloud run services update gymflow-gateway --project=sd2026 --region=us-central1 \
+  --image="us-central1-docker.pkg.dev/sd2026/gymflow/api-gateway:$TAG"
+gcloud run services update gymflow-frontend --project=sd2026 --region=us-central1 \
+  --image="us-central1-docker.pkg.dev/sd2026/gymflow/frontend:$TAG"
+```
+
+A matricula INATIVO permite consultar historico, mas impede registrar execucao
+pela API REST. O Gateway consulta o aluno vinculado a ficha antes de enviar a
+escrita ao treino-service. Se nao puder verificar a matricula, nao grava.
+A consulta de mensalidades permanece disponivel independentemente da matricula.
+As variaveis, os secrets e as contas de servico existentes sao preservados.

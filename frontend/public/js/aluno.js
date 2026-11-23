@@ -208,6 +208,7 @@ class AlunoApp {
     container.innerHTML = '<p class="text-muted text-center py-4">⏳ Carregando suas fichas de treino...</p>';
 
     try {
+      await this.atualizarMatricula();
       const resp = await this.apiRequest(`/api/listarFichasAluno/${this.alunoId}`);
       if (resp.ok) {
         const fichas = await resp.json();
@@ -237,7 +238,15 @@ class AlunoApp {
     }
   }
 
+  async atualizarMatricula() {
+    const resp = await this.apiRequest(`/api/buscarAluno/${this.alunoId}`);
+    if (!resp.ok) throw new Error('Não foi possível conferir a situação da matrícula. Recarregue e tente novamente.');
+    this.alunoDados = await resp.json();
+    this.renderizarCabecalhoEPerfil();
+  }
+
   renderizarFichas(fichas, container) {
+    const inativo = this.alunoDados?.status === 'INATIVO';
     if (!fichas || fichas.length === 0) {
       container.innerHTML = `
         <div class="text-center py-5">
@@ -266,11 +275,11 @@ class AlunoApp {
           <div>
             <input type="number" step="0.5" class="form-control form-control-sm input-carga-real"
                    value="${item.cargaUsada > 0 ? item.cargaUsada : item.cargaSugerida}"
-                   placeholder="Peso usado (kg)">
+                   placeholder="Peso usado (kg)" ${inativo ? 'disabled' : ''}>
           </div>
           <div>
             <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
-              <input type="checkbox" class="chk-concluido" ${item.concluido ? 'checked' : ''}>
+              <input type="checkbox" class="chk-concluido" ${inativo ? 'disabled' : ''} ${item.concluido ? 'checked' : ''}>
               <span class="text-xs">Feito</span>
             </label>
           </div>
@@ -299,9 +308,9 @@ class AlunoApp {
           </div>
 
           <div class="ficha-footer">
-            <small class="text-muted">Ajuste os pesos usados hoje e marque a execução do treino.</small>
-            <button class="btn btn-sm btn-primary" onclick="alunoApp.registrarExecucaoTreino('${f.id}')">
-              Salvar Execução do Treino
+            <small class="text-muted">${inativo ? 'Matrícula inativa: histórico disponível apenas para consulta.' : 'Ajuste os pesos usados hoje e marque a execução do treino.'}</small>
+            <button class="btn btn-sm btn-primary" onclick="alunoApp.registrarExecucaoTreino('${f.id}')" ${inativo ? 'disabled' : ''}>
+              ${inativo ? 'Registro bloqueado' : 'Salvar Execução do Treino'}
             </button>
           </div>
         </div>
@@ -329,6 +338,12 @@ class AlunoApp {
     });
 
     try {
+      await this.atualizarMatricula();
+      if (this.alunoDados.status === 'INATIVO') {
+        this.mostrarToast('Matrícula inativa. O registro de execução está bloqueado. Procure a administração da academia.', 'warning');
+        await this.carregarMeusTreinos();
+        return;
+      }
       const resp = await this.apiRequest(`/api/registrarExecucaoTreino/${fichaId}`, {
         method: 'POST',
         body: JSON.stringify({ itens })
@@ -363,11 +378,41 @@ class AlunoApp {
         const mensalidades = await resp.json();
         this.renderizarMensalidades(mensalidades, tbody);
       } else {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Erro ao carregar mensalidades.</td></tr>';
+        const err = await resp.json().catch(() => ({}));
+        this.mostrarErroMensalidades(tbody, err.mensagem || `Não foi possível carregar as mensalidades (HTTP ${resp.status}).`);
       }
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erro de conexão: ${e.message}</td></tr>`;
+      this.mostrarErroMensalidades(tbody, 'Falha de conexão. Tente recarregar as mensalidades.');
     }
+  }
+
+  mostrarErroMensalidades(tbody, mensagem) {
+    tbody.replaceChildren();
+    const linha = tbody.insertRow();
+    const celula = linha.insertCell();
+    celula.colSpan = 6;
+    celula.className = 'text-center py-4';
+    const texto = document.createElement('p');
+    texto.textContent = mensagem;
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'btn btn-sm btn-outline mt-2';
+    botao.textContent = 'Tentar novamente';
+    botao.addEventListener('click', () => this.carregarMinhasMensalidades());
+    celula.append(texto, botao);
+  }
+
+  formatarData(valor, incluirHora = false) {
+    if (!valor) return '—';
+    const partes = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(valor);
+    if (!partes) return '—';
+    return `${partes[3]}/${partes[2]}/${partes[1]}` + (incluirHora && partes[4] ? ` às ${partes[4]}:${partes[5]}` : '');
+  }
+
+  escaparTexto(valor) {
+    const texto = document.createElement('span');
+    texto.textContent = valor;
+    return texto.innerHTML;
   }
 
   renderizarMensalidades(mensalidades, tbody) {
@@ -383,15 +428,15 @@ class AlunoApp {
           ? '<span class="badge badge-danger">Atrasado</span>'
           : '<span class="badge badge-warning">Pendente</span>';
 
-      const valorFmt = `R$ ${Number(m.valor).toFixed(2)}`;
+      const valorFmt = Number(m.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       return `
         <tr>
-          <td><strong>${m.descricao || 'Mensalidade'}</strong></td>
+          <td><strong>${this.escaparTexto(m.descricao || 'Mensalidade')}</strong></td>
           <td><strong>${valorFmt}</strong></td>
-          <td>${m.dataVencimento || '—'}</td>
+          <td>${this.formatarData(m.dataVencimento)}</td>
           <td>${statusBadge}</td>
-          <td>${m.dataPagamento || '—'}</td>
-          <td>${m.formaPagamento || '—'}</td>
+          <td>${this.formatarData(m.dataPagamento, true)}</td>
+          <td>${this.escaparTexto(m.formaPagamento || '—')}</td>
         </tr>
       `;
     }).join('');

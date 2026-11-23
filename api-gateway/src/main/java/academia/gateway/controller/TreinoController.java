@@ -5,6 +5,7 @@ import academia.gateway.dto.FichaTreinoResponseDto;
 import academia.gateway.dto.GerarTreinoIaRequest;
 import academia.gateway.dto.RegistrarExecucaoRequest;
 import academia.gateway.servico.IaTreinoService;
+import academia.gateway.servico.MatriculaTreinoService;
 import academia.grpc.BuscarFichaTreinoRequest;
 import academia.grpc.ListarFichasPorAlunoRequest;
 import academia.grpc.TreinoServiceGrpc;
@@ -36,12 +37,15 @@ public class TreinoController {
 
     private final TreinoServiceGrpc.TreinoServiceBlockingStub treinoStub;
     private final IaTreinoService iaTreinoService;
+    private final MatriculaTreinoService matriculaTreinoService;
 
     public TreinoController(
             TreinoServiceGrpc.TreinoServiceBlockingStub treinoStub,
-            IaTreinoService iaTreinoService) {
+            IaTreinoService iaTreinoService,
+            MatriculaTreinoService matriculaTreinoService) {
         this.treinoStub = treinoStub;
         this.iaTreinoService = iaTreinoService;
+        this.matriculaTreinoService = matriculaTreinoService;
     }
 
     /**
@@ -146,6 +150,11 @@ public class TreinoController {
     public ResponseEntity<FichaTreinoResponseDto> registrarExecucaoTreino(
             @PathVariable("id") String id,
             @Valid @RequestBody RegistrarExecucaoRequest dto) {
+
+        // Consulta o aluno vinculado a ficha, sem confiar em dados enviados pelo navegador.
+        var ficha = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS)
+                .buscarFichaTreino(BuscarFichaTreinoRequest.newBuilder().setId(id).build());
+        matriculaTreinoService.validarRegistroExecucao(ficha.getAlunoId());
 
         var protoReq = academia.grpc.RegistrarExecucaoRequest.newBuilder()
                 .setFichaId(id);
