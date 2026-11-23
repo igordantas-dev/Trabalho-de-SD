@@ -15,20 +15,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Controller REST do Gateway para gerenciamento de alunos.
  * Todas as rotas iniciam por verbos de ação para maior clareza.
- * Aplica deadline de 5s em todas as chamadas gRPC conforme especificação.
+ * Aplica deadline configuravel por chamada gRPC.
  */
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Alunos", description = "Cadastro, consulta e atualização de alunos")
 public class AlunoController {
 
-    private static final long DEADLINE_SEGUNDOS = 5;
+    @Value("${grpc.deadline-seconds:5}")
+    private long deadlineSegundos = 5;
     private final AlunoServiceGrpc.AlunoServiceBlockingStub alunoStub;
 
     public AlunoController(AlunoServiceGrpc.AlunoServiceBlockingStub alunoStub) {
@@ -58,7 +60,7 @@ public class AlunoController {
         if (dto.peso() != null) protoReq.setPeso(dto.peso());
         if (dto.altura() != null) protoReq.setAltura(dto.altura());
 
-        var stubComPrazo = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.cadastrarAluno(protoReq.build());
         return ResponseEntity.status(HttpStatus.CREATED).body(AlunoResponseDto.fromProto(protoResp));
     }
@@ -74,7 +76,7 @@ public class AlunoController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<List<AlunoResponseDto>> listarAlunos() {
-        var stubComPrazo = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarAlunos(ListarAlunosRequest.getDefaultInstance());
         List<AlunoResponseDto> lista = protoResp.getAlunosList()
                 .stream()
@@ -96,7 +98,7 @@ public class AlunoController {
     })
     public ResponseEntity<AlunoResponseDto> buscarAluno(@PathVariable("id") String id) {
         var protoReq = BuscarAlunoRequest.newBuilder().setId(id).build();
-        var stubComPrazo = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarAluno(protoReq);
         return ResponseEntity.ok(AlunoResponseDto.fromProto(protoResp));
     }
@@ -122,7 +124,7 @@ public class AlunoController {
                 .setStatus(dto.status())
                 .build();
 
-        var stubComPrazo = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.atualizarStatusAluno(protoReq);
         return ResponseEntity.ok(AlunoResponseDto.fromProto(protoResp));
     }

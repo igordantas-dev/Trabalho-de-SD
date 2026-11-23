@@ -99,7 +99,7 @@ public class GatewayExceptionHandler {
             }
             case DEADLINE_EXCEEDED -> {
                 httpStatus = HttpStatus.GATEWAY_TIMEOUT;
-                mensagemAmigavel = "O tempo limite da requisição foi excedido (5s). O microsserviço interno demorou para responder.";
+                mensagemAmigavel = "O tempo limite da requisição foi excedido. O microsserviço interno demorou para responder.";
             }
             case PERMISSION_DENIED -> {
                 httpStatus = HttpStatus.FORBIDDEN;

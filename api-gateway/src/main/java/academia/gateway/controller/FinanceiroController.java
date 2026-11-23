@@ -15,20 +15,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Controller REST do Gateway para gestão financeira (mensalidades e pagamentos).
  * Todas as rotas iniciam por verbos de ação para máxima clareza.
- * Aplica deadline de 5s em todas as chamadas gRPC conforme especificação.
+ * Aplica deadline configuravel por chamada gRPC.
  */
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Financeiro", description = "Geração e pagamento de mensalidades")
 public class FinanceiroController {
 
-    private static final long DEADLINE_SEGUNDOS = 5;
+    @Value("${grpc.deadline-seconds:5}")
+    private long deadlineSegundos = 5;
 
     private final FinanceiroServiceGrpc.FinanceiroServiceBlockingStub financeiroStub;
 
@@ -58,7 +60,7 @@ public class FinanceiroController {
             protoReq.setDescricao(dto.descricao());
         }
 
-        var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.gerarMensalidade(protoReq.build());
         return ResponseEntity.status(HttpStatus.CREATED).body(MensalidadeResponseDto.fromProto(protoResp));
     }
@@ -76,7 +78,7 @@ public class FinanceiroController {
     })
     public ResponseEntity<MensalidadeResponseDto> buscarMensalidade(@PathVariable("id") String id) {
         var protoReq = BuscarMensalidadeRequest.newBuilder().setId(id).build();
-        var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarMensalidade(protoReq);
         return ResponseEntity.ok(MensalidadeResponseDto.fromProto(protoResp));
     }
@@ -93,7 +95,7 @@ public class FinanceiroController {
     })
     public ResponseEntity<List<MensalidadeResponseDto>> listarMensalidadesPorAluno(@PathVariable("alunoId") String alunoId) {
         var protoReq = ListarMensalidadesPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
-        var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarMensalidadesPorAluno(protoReq);
         List<MensalidadeResponseDto> lista = protoResp.getMensalidadesList()
                 .stream()
@@ -124,7 +126,7 @@ public class FinanceiroController {
                 .setFormaPagamento(dto.formaPagamento())
                 .build();
 
-        var stubComPrazo = financeiroStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.registrarPagamento(protoReq);
         return ResponseEntity.ok(MensalidadeResponseDto.fromProto(protoResp));
     }

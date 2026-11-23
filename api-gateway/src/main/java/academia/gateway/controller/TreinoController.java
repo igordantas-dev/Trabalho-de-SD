@@ -17,20 +17,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Controller REST do Gateway para gerenciamento de treinos e execução de exercícios.
  * Todas as rotas iniciam por verbos de ação para máxima legibilidade.
- * Aplica deadline de 5s em todas as chamadas gRPC conforme especificação.
+ * Aplica deadline configuravel por chamada gRPC.
  */
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Treinos", description = "Criação de fichas, geração com IA e registro de execuções")
 public class TreinoController {
 
-    private static final long DEADLINE_SEGUNDOS = 5;
+    @Value("${grpc.deadline-seconds:5}")
+    private long deadlineSegundos = 5;
 
     private final TreinoServiceGrpc.TreinoServiceBlockingStub treinoStub;
     private final IaTreinoService iaTreinoService;
@@ -70,7 +72,7 @@ public class TreinoController {
             protoReq.addItens(itemProto);
         }
 
-        var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.criarFichaTreino(protoReq.build());
         return ResponseEntity.status(HttpStatus.CREATED).body(FichaTreinoResponseDto.fromProto(protoResp));
     }
@@ -104,7 +106,7 @@ public class TreinoController {
     })
     public ResponseEntity<FichaTreinoResponseDto> buscarFichaTreino(@PathVariable("id") String id) {
         var protoReq = BuscarFichaTreinoRequest.newBuilder().setId(id).build();
-        var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarFichaTreino(protoReq);
         return ResponseEntity.ok(FichaTreinoResponseDto.fromProto(protoResp));
     }
@@ -121,7 +123,7 @@ public class TreinoController {
     })
     public ResponseEntity<List<FichaTreinoResponseDto>> listarFichasPorAluno(@PathVariable("alunoId") String alunoId) {
         var protoReq = ListarFichasPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
-        var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarFichasPorAluno(protoReq);
         List<FichaTreinoResponseDto> lista = protoResp.getFichasList()
                 .stream()
@@ -156,7 +158,7 @@ public class TreinoController {
                     .build());
         }
 
-        var stubComPrazo = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.registrarExecucao(protoReq.build());
         return ResponseEntity.ok(FichaTreinoResponseDto.fromProto(protoResp));
     }

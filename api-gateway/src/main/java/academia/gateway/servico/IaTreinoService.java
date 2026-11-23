@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class IaTreinoService {
 
-    private static final long DEADLINE_SEGUNDOS = 5;
+    @Value("${grpc.deadline-seconds:5}")
+    private long deadlineSegundos = 5;
 
     private final AlunoServiceGrpc.AlunoServiceBlockingStub alunoStub;
     private final TreinoServiceGrpc.TreinoServiceBlockingStub treinoStub;
@@ -45,8 +46,8 @@ public class IaTreinoService {
     }
 
     public FichaTreinoResponseDto gerarTreinoComIa(GerarTreinoIaRequest request) {
-        // 1. Busca aluno no aluno-service (gRPC com deadline de 5s)
-        var stubAluno = alunoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        // 1. Busca aluno no aluno-service (gRPC com deadline configuravel)
+        var stubAluno = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         AlunoResponse aluno = stubAluno.buscarAluno(
                 BuscarAlunoRequest.newBuilder().setId(request.alunoId()).build()
         );
@@ -82,7 +83,7 @@ public class IaTreinoService {
                 .addAllItens(itensGerados)
                 .build();
 
-        var stubTreino = treinoStub.withDeadlineAfter(DEADLINE_SEGUNDOS, TimeUnit.SECONDS);
+        var stubTreino = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         FichaTreinoResponse fichaPersistida = stubTreino.criarFichaTreino(protoFichaReq);
 
         return FichaTreinoResponseDto.fromProto(fichaPersistida);

@@ -39,7 +39,10 @@ GrpcRetryPolicy aplica retry somente a:
 
 Sao no maximo 3 tentativas, incluindo a primeira, apenas em UNAVAILABLE.
 O intervalo parte de 200 ms, dobra e tem teto de 1 s, com jitter do gRPC.
-O deadline existente de 5 s cobre o conjunto das tentativas de cada RPC.
+O deadline cobre o conjunto das tentativas de cada RPC. O padrao local e 5 s.
+No Gateway do Cloud Run, configure GRPC_DEADLINE_SECONDS=20 para acomodar
+a inicializacao a frio dos microsservicos, sem manter instancias ociosas.
+O timeout HTTP do frontend e do Cloud Run permanece em 60 s.
 DEADLINE_EXCEEDED e erros de negocio nao acionam novas tentativas.
 Nao ha politica de retry para criacao, pagamento ou atualizacao.
 O gRPC pode repetir transparentemente transportes que nao chegaram a executar
@@ -68,6 +71,16 @@ Cloud Shell (depois do build/install dos contratos):
 ./mvnw -pl api-gateway test-compile exec:java -Dexec.mainClass=academia.gateway.grpc.GrpcRetryIntegrationCheck -Dexec.classpathScope=test
 ```
 
+### Verificar deadline configuravel
+
+O teste abaixo inicia um servidor gRPC com resposta de 6 s e usa o controller
+real com configuracao Spring: o padrao de 5 s expira, mas a variavel de ambiente
+GRPC_DEADLINE_SECONDS=20 permite concluir a consulta.
+
+```powershell
+.\mvnw.cmd -pl api-gateway test-compile exec:java "-Dexec.mainClass=academia.gateway.grpc.ColdStartDeadlineCheck" "-Dexec.classpathScope=test"
+```
+
 ### Demonstracao local de falha e recuperacao
 
 Recrie os conteineres, aguarde inicializarem e execute:
@@ -84,6 +97,17 @@ O bloco finally tenta restaurar o servico mesmo se o teste falhar.
 Esse teste e local; o roteiro de falha no Cloud Run sera preparado separadamente.
 
 ## Ainda necessario antes da entrega
+
+Para publicar somente o Gateway com o prazo ajustado, envie os commits para
+develop, atualize o clone do Cloud Shell e execute:
+
+```bash
+bash scripts/Update-Gateway.sh
+```
+
+O script publica uma imagem com a tag do commit e atualiza somente a imagem e
+GRPC_DEADLINE_SECONDS=20 no servico existente, preservando hosts e segredos.
+Nao habilita instancias minimas permanentemente.
 
 - Validar a conexao real com Cloud SQL.
 - Adicionar scripts de schema/migracoes versionados e executar no banco.
