@@ -1,0 +1,5 @@
+\set ON_ERROR_STOP on
+BEGIN READ ONLY;
+\ir Validate.sql
+COMMIT;
+\echo VALIDACAO_DO_BANCO_CONCLUIDA

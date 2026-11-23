@@ -1,0 +1,21 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+SELECT pg_advisory_xact_lock(2026, 1);
+\ir migrations/V001__schema_inicial.sql
+\ir Validate.sql
+
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    version varchar(20) PRIMARY KEY,
+    description text NOT NULL,
+    applied_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO public.schema_migrations (version, description)
+VALUES ('001', 'Baseline JPA: alunos, fichas_treino, itens_treino, mensalidades')
+ON CONFLICT (version) DO NOTHING;
+
+COMMIT;
+SELECT version, description, applied_at FROM public.schema_migrations ORDER BY version;
+\echo BASELINE_DO_BANCO_CONCLUIDA

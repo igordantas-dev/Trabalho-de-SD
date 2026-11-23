@@ -155,11 +155,13 @@ Nao habilita instancias minimas permanentemente.
 
 - Conexao com Cloud SQL e fluxo HTTPS validados pelo teste de cadastro,
   consulta, treino, mensalidade e pagamento em 23/11/2026.
-- Adicionar scripts de schema/migracoes versionados e executar no banco.
+- Scripts de schema/baseline em db/: consulte db/README.md para testar,
+  validar o banco existente e registrar a versao 001.
 - Cinco servicos implantados: alunos, treinos, financeiro, Gateway e frontend.
 - Configurar variaveis/segredos e conferir no console.
-- Executar a demonstracao de resiliência no Cloud Run e registrar as evidencias.
-- Confirmar com o grupo a VM antiga e comprovar que esta desligada/excluida.
+- Demonstracao de resiliência no Cloud Run concluida; guardar os prints
+  do Cloud Logging com as tres tentativas.
+- Grupo confirmou exclusao das VMs antigas; guardar os prints de cada projeto.
 - Relatorio PDF de ate 5 paginas com arquitetura e URLs reais.
 
 Referencias:
