@@ -51,11 +51,13 @@ bash scripts/CloudSql-Schema.sh apply
 ```
 
 Confira BASELINE_DO_BANCO_CONCLUIDA e a versao 001.
-O script busca a senha do Secret Manager sem exibi-la e usa gcloud sql connect.
-Ele requer o cliente psql (disponivel no Cloud Shell) e as permissoes de acesso
-a instancia/secret da conta que executa o comando.
-Se o cliente pedir senha apesar de PGPASSWORD, interrompa e confira o erro;
-nunca grave a senha em arquivo de codigo.
+O script busca a senha do Secret Manager sem exibi-la e inicia seu proprio
+cloud-sql-proxy em uma porta dinamica de 127.0.0.1. O cliente psql recebe a
+senha por PGPASSWORD e usa -w, que proibe prompts de senha.
+Ele requer gcloud, cloud-sql-proxy e psql, presentes no Cloud Shell usado no
+projeto, e as permissoes de acesso a instancia/secret.
+O proxy iniciado pelo script e encerrado ao final, inclusive em caso de erro.
+Nao e necessario instalar pacotes Python adicionais.
 
 ## Garantias e limites
 
