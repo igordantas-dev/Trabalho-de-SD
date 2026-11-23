@@ -1,266 +1,257 @@
-# Sistema Distribuído de Gestão de Academia — GymFlow Pro
+# GymFlow — Sistema Distribuído de Gestão de Academia
 
-> Entrega final (develop): consulte [DOCKER.md](DOCKER.md) para a arquitetura atual e os comandos. O frontend agora esta em frontend/public, servido separadamente em http://localhost:8081. A API continua em http://localhost:8080. As instrucoes de VMs abaixo documentam a entrega anterior; a migracao gerenciada ainda esta em andamento.
+Projeto da disciplina de **Sistemas Distribuídos** para cadastrar alunos, organizar fichas de treino e acompanhar mensalidades.
 
+A versão final utiliza **cinco serviços no Google Cloud Run** e **PostgreSQL no Cloud SQL**. As imagens ficam no Artifact Registry e a publicação utiliza Cloud Build. Nenhum componente da aplicação depende de execução direta em uma VM do Compute Engine.
 
-Trabalho prático desenvolvido para a disciplina de **Sistemas Distribuídos** (Trabalho 2 — Exposição Web, API Gateway e Microsserviços Distribuídos).
+**Branch da entrega final:** [`develop`](https://github.com/igordantas-dev/Trabalho-de-SD/tree/develop).
 
-O sistema evolui a arquitetura distribuída anterior para uma plataforma completa com interface gráfica (**Frontend Web SPA**), um **API Gateway centralizador (Spring Boot)** com segurança **JWT**, documentação interativa **Swagger/OpenAPI**, módulo de **geração de treinos assistida por IA**, e comunicação interna de alta performance via **gRPC/Protocol Buffers** integrada a três microsserviços com **persistência real em banco de dados relacional (PostgreSQL via JPA/Hibernate)**.
+## Acessar o sistema
 
----
+Não é necessário instalar programas nem manter um computador ou Cloud Shell aberto para usar a versão publicada.
 
-## 👥 Integrantes do Grupo
+| Acesso | Endereço |
+|---|---|
+| Painel de gestão | [Abrir o painel](https://gymflow-frontend-qywzrohxza-uc.a.run.app/) |
+| Portal do Aluno | [Abrir o portal](https://gymflow-frontend-qywzrohxza-uc.a.run.app/aluno.html) |
+| Documentação da API | [Swagger UI](https://gymflow-gateway-qywzrohxza-uc.a.run.app/swagger-ui.html) |
 
-- **Andressa Gonçalves Barros**
-- **Igor Carvalho Dantas**
-- **Wallace Elpidio Pereira Cardoso**
+Clique em **Entrar na demonstração**. No portal, selecione o aluno cujos dados deseja consultar. Os dados cadastrados são compartilhados entre os usuários da versão em nuvem e persistidos no Cloud SQL.
 
----
+> **Acesso didático:** a demonstração não utiliza contas individuais nem verifica a identidade do aluno. Use dados fictícios. O Gateway valida assinatura e validade de tokens JWT, mas a emissão pública desses tokens não representa um sistema de autenticação para produção.
 
-## 🏛️ Arquitetura do Sistema
+## O que a aplicação faz
 
-A arquitetura adota o padrão **"REST na Borda, gRPC por Dentro"**, garantindo facilidade de integração com clientes web e mobile, e máxima eficiência na comunicação interna entre microsserviços:
+| Área | Funcionalidades |
+|---|---|
+| Alunos | Cadastro, listagem, consulta e alteração do status da matrícula: `ATIVO`, `INADIMPLENTE` ou `INATIVO`. |
+| Treinos | Criação de várias fichas por aluno, consulta de exercícios e registro das cargas usadas e dos exercícios feitos. |
+| Gerador de treinos | Geração automática por regras e gravação da ficha no serviço de treinos. |
+| Mensalidades | Criação de mensalidades, consulta por aluno e registro manual de pagamentos recebidos. |
+| Portal do Aluno | Consulta de cadastro, fichas e mensalidades; registro de execução de treinos quando a matrícula permite. |
 
-```text
- ┌────────────────────────────────────────────────────────────────────────┐
- │                              CLIENTES                                  │
- │         Navegador Web (Frontend SPA)  /  Postman  /  Swagger UI        │
- └───────────────────────────────────┬────────────────────────────────────┘
-                                     │ HTTP/REST (JSON) + Bearer JWT
-                                     ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                     API GATEWAY (Spring Boot :8080)                    │
- │                                                                        │
- │  • Filtro de Autenticação JWT (HS256) ──▶ Retorna 401 se inválido      │
- │  • Bean Validation (@Valid)            ──▶ Retorna 400 se JSON inválido│
- │  • Orquestração & Deadline (5s)         ──▶ Retorna 504 se tempo esgotar│
- │  • Tradução JSON ⇄ Protobuf                                            │
- │  • Assistente IA de Treinos (Gemini API + Motor Heurístico)            │
- │  • Documentação OpenAPI / Swagger UI (/swagger-ui.html)                │
- │  • Frontend Web SPA Integrado (/)                                      │
- └─────────────┬─────────────────────┬─────────────────────┬──────────────┘
-               │ gRPC :9091          │ gRPC :9092          │ gRPC :9093
-               │ HTTP/2              │ HTTP/2              │ HTTP/2
-               ▼                     ▼                     ▼
- ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
- │     aluno-service    │  │    treino-service    │  │  financeiro-service  │
- │     (gRPC :9091)     │  │     (gRPC :9092)     │  │     (gRPC :9093)     │
- └──────────┬───────────┘  └──────────┬───────────┘  └──────────┬───────────┘
-            │ JPA/Hibernate           │ JPA/Hibernate           │ JPA/Hibernate
-            ▼                         ▼                         ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                    BANCO DE DADOS (PostgreSQL :5432)                   │
- │       Tabelas: alunos  ·  fichas_treino  ·  itens_treino  ·  mensalidades  │
- └────────────────────────────────────────────────────────────────────────┘
+Os painéis de cadastro começam recolhidos, enquanto as listas começam abertas. Recolher um painel preserva o preenchimento. Ao mudar de aba, o contexto é limpo; havendo alterações não salvas, a interface pede confirmação.
+
+### Regras e limites da demonstração
+
+- **Execução do treino:** sem exercícios feitos, a ficha aparece como Pendente; com parte feita, Em andamento; com todos feitos, Concluído. Desmarcar um exercício e salvar remove a conclusão. O registro atual é atualizado na própria ficha; não existe histórico separado de sessões por dia.
+- **Matrícula inativa:** o histórico continua consultável, mas o registro de execução é bloqueado no portal e na API REST do Gateway. O Gateway consulta a matrícula do aluno vinculado à ficha antes de encaminhar a gravação.
+- **Pagamento:** “Registrar pagamento recebido” faz uma baixa manual no banco. Não existe cobrança, emissão real de boleto ou transação PIX/cartão. O portal permite somente consultar as mensalidades.
+- **Gerador de treinos:** a aba ainda se chama “Treino IA”, mas o resultado atual é produzido por regras locais de peso, nível e foco muscular. O código possui uma consulta opcional ao Gemini, porém não aproveita os exercícios retornados pelo modelo. Objetivo e observações não modificam a prescrição do gerador local.
+- **Cadastro e financeiro:** edição dos dados pessoais, exclusão definitiva de alunos e filtros gerais de mensalidades ainda não estão implementados. A consulta financeira atual é por aluno.
+
+## Arquitetura
+
+O navegador envia requisições **REST/JSON** ao frontend. O Nginx encaminha `/api/` ao Gateway, que chama os microsserviços usando **gRPC/Protocol Buffers**. Cada microsserviço acessa os dados de seu domínio no PostgreSQL; o Gateway não acessa o banco diretamente.
+
+```mermaid
+flowchart TD
+    Navegador["Navegador"] -->|HTTPS| Frontend["Frontend · Cloud Run / Nginx"]
+    Frontend -->|HTTPS · REST/JSON| Gateway["API Gateway · Cloud Run"]
+    Gateway -->|gRPC / HTTPS| Alunos["Alunos · Cloud Run"]
+    Gateway -->|gRPC / HTTPS| Treinos["Treinos · Cloud Run"]
+    Gateway -->|gRPC / HTTPS| Financeiro["Financeiro · Cloud Run"]
+    Alunos --> Banco["PostgreSQL · Cloud SQL"]
+    Treinos --> Banco
+    Financeiro --> Banco
 ```
 
-### Divisão de Responsabilidades
+Os domínios compartilham a instância e o banco `academia`. `aluno_id` em fichas e mensalidades é uma referência lógica, sem chave estrangeira entre esses domínios. Os itens de treino possuem chave estrangeira para sua ficha.
 
-| Módulo | Tipo | Tecnologia | Porta | Responsabilidade Principal |
-|---|---|---|---|---|
-| **`api-gateway`** | Borda REST | Spring Boot 3, Spring Security, Swagger | `8080` | Ponto único de entrada, validação de tokens JWT, Bean Validation, tradução JSON ⇄ Protobuf, orquestrador de IA e host do Frontend SPA. |
-| **`aluno-service`** | Microsserviço | gRPC, JPA / Hibernate | `9091` | Gestão cadastral de alunos, verificação de duplicidade de CPF e controle de status de matrícula (`ATIVO`, `INATIVO`, `INADIMPLENTE`). |
-| **`treino-service`** | Microsserviço | gRPC, JPA / Hibernate | `9092` | Criação de fichas de treino, catálogo de exercícios e **registro de execução com persistência das cargas reais utilizadas**. |
-| **`financeiro-service`**| Microsserviço | gRPC, JPA / Hibernate | `9093` | Geração de mensalidades com vencimento, máquina de estados (`PENDENTE` ➔ `PAGO`/`ATRASADO`) e quitação segura anti-duplo pagamento. |
-| **`contratos-grpc`** | Contratos | Protocol Buffers (Proto3) | — | Definição tipada dos serviços e mensagens RPC (`aluno.proto`, `treino.proto`, `financeiro.proto`). |
+| Componente | Tecnologia / responsabilidade |
+|---|---|
+| `frontend/` | HTML, CSS e JavaScript servidos por Nginx em contêiner próprio. |
+| `api-gateway/` | Java 21, Spring Boot, Spring Security, validação de requisições, JWT e tradução REST/gRPC. |
+| `aluno-service/` | Java 21, gRPC e JPA/Hibernate para cadastro e matrícula. |
+| `treino-service/` | Java 21, gRPC e JPA/Hibernate para fichas, exercícios e execução. |
+| `financeiro-service/` | Java 21, gRPC e JPA/Hibernate para mensalidades e pagamentos registrados. |
+| `contratos-grpc/` | Arquivos `.proto` e geração das mensagens e interfaces de comunicação. |
 
----
+### Serviços gerenciados no GCP
 
-## 🔒 Segurança & Autenticação JWT
+Projeto: `sd2026`. Região dos serviços: `us-central1`.
 
-O sistema implementa autenticação **Stateless** via Spring Security e OAuth2 Resource Server:
-- **Algoritmo:** HMAC-SHA256 (`HS256`).
-- **Segredo Didático:** `segredo-didatico-com-tamanho-suficiente-para-hs256` (configurável via variável `JWT_SECRET`).
-- **Duração do Token:** 30 minutos após emissão.
-- **Cabeçalho Obrigatório:** `Authorization: Bearer <TOKEN>` em todas as rotas operacionais de `/api/**`.
-- **Filtro de Segurança:** Requisições sem token ou com token inválido/expirado são rejeitadas com **`401 Unauthorized`** e cabeçalho `WWW-Authenticate: Bearer`.
+| Recurso | Uso |
+|---|---|
+| Cloud Run | Execução dos cinco componentes, com endpoints HTTPS. |
+| Cloud SQL | PostgreSQL 16, instância `gymflow-db`, banco `academia`. |
+| Artifact Registry | Repositório Docker `us-central1-docker.pkg.dev/sd2026/gymflow`. |
+| Cloud Build | Construção e publicação das imagens a partir do código-fonte. |
+| Secret Manager | Segredos do banco e da assinatura JWT, referenciados pelos serviços. |
+| Cloud Logging | Logs de execução e das tentativas de chamadas gRPC. |
 
-### Como obter um Token JWT:
-1. **Via Endpoint REST:**
-   ```bash
-   curl -X POST http://localhost:8080/api/autenticar \
-     -H "Content-Type: application/json" \
-     -d '{"username":"aluno","senha":"123"}'
-   ```
-2. **Via Endpoint Rápido de Laboratório:**
-   ```bash
-   curl http://localhost:8080/api/gerarToken
-   ```
-3. **Via Linha de Comando:**
-   ```bash
-   ./mvnw exec:java -pl api-gateway -Dexec.mainClass="academia.gateway.seguranca.GeradorTokenJwt"
-   ```
+| Serviço no Cloud Run | URL pública HTTPS |
+|---|---|
+| `gymflow-frontend` | https://gymflow-frontend-qywzrohxza-uc.a.run.app |
+| `gymflow-gateway` | https://gymflow-gateway-qywzrohxza-uc.a.run.app |
+| `gymflow-aluno` | https://gymflow-aluno-qywzrohxza-uc.a.run.app |
+| `gymflow-treino` | https://gymflow-treino-qywzrohxza-uc.a.run.app |
+| `gymflow-financeiro` | https://gymflow-financeiro-qywzrohxza-uc.a.run.app |
 
----
+As URLs dos microsserviços recebem chamadas gRPC; não são páginas web. A comunicação usa TLS até o Cloud Run e HTTP/2 sem TLS dentro dos contêineres gRPC. Os endpoints da plataforma permitem invocação pública; não há autenticação IAM entre os serviços nesta demonstração.
 
-## 📖 Documentação Interativa Swagger / OpenAPI 3
+## Executar localmente com Docker
 
-O API Gateway disponibiliza a documentação viva de todas as rotas através do Swagger UI:
-- **URL de Acesso:** `http://localhost:8080/swagger-ui.html`
-- **JSON OpenAPI:** `http://localhost:8080/v3/api-docs`
-- **Importação Direta no Postman:** `http://localhost:8080/v3/api-docs.json` — cole esta URL diretamente no Postman via **Import > Link** para importar todos os endpoints automaticamente.
-- **Autenticação no Swagger:** Clique no botão verde **"Authorize"** no topo da página e insira seu token no formato:
-  ```text
-  Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-  ```
+### Pré-requisitos
 
----
+- Git.
+- Docker Desktop iniciado, com contêineres Linux e Docker Compose.
+- PowerShell para os comandos e scripts abaixo.
+- Internet para o primeiro download de imagens e dependências.
 
-## 🌐 Endpoints REST (Rotas em camelCase)
+O build em Docker já fornece Java 21 e Maven. Não é necessário instalá-los no computador para executar esse fluxo. Prefira um caminho sem acentos, como `C:\workspace`, para evitar problemas com ferramentas de geração de código no Windows.
 
-Todas as rotas da API seguem a convenção **camelCase** para facilitar a integração:
+### Primeira instalação
 
-### 1. Autenticação
-- `POST /api/autenticar` — Realiza login e emite token JWT (`200 OK`).
-- `GET /api/gerarToken` — Emite token rápido de demonstração (`200 OK`).
+```powershell
+New-Item -ItemType Directory -Force C:\workspace | Out-Null
+cd C:\workspace
+git clone --branch develop https://github.com/igordantas-dev/Trabalho-de-SD.git
+cd Trabalho-de-SD
 
-### 2. Gestão de Alunos
-- `POST /api/cadastrarAluno` — Cadastra novo aluno (`201 Created` / `400 Bad Request` / `409 Conflict`).
-- `GET /api/listarAlunos` — Lista todos os alunos cadastrados (`200 OK`).
-- `GET /api/buscarAluno/{id}` — Busca detalhes de um aluno por UUID (`200 OK` / `404 Not Found`).
-- `PATCH /api/atualizarStatusAluno/{id}` — Atualiza status de matrícula (`200 OK`).
-
-### 3. Fichas de Treino & Inteligência Artificial
-- `POST /api/criarFichaTreino` — Criação manual de ficha com exercícios (`201 Created`).
-- `POST /api/gerarTreinoIa` — **Geração inteligente de treino assistida por IA** (`200 OK`).
-- `GET /api/buscarFichaTreino/{id}` — Busca detalhes de uma ficha (`200 OK` / `404 Not Found`).
-- `GET /api/listarFichasAluno/{alunoId}` — Lista histórico de treinos do aluno (`200 OK`).
-- `POST /api/registrarExecucaoTreino/{id}` — **Conclui treino e salva as cargas reais utilizadas** (`200 OK`).
-
-### 4. Gestão Financeira
-- `POST /api/gerarMensalidade` — Gera cobrança com vencimento (`201 Created`).
-- `GET /api/buscarMensalidade/{id}` — Busca mensalidade por UUID (`200 OK` / `404 Not Found`).
-- `GET /api/listarMensalidadesAluno/{alunoId}` — Lista histórico de cobranças do aluno (`200 OK`).
-- `POST /api/registrarPagamentoMensalidade/{id}` — Quita cobrança (`PIX`, `CARTAO`, `DINHEIRO`, `BOLETO`) (`200 OK` / `422 Unprocessable`).
-
----
-
-## 🤖 Geração de Treinos com Inteligência Artificial
-
-O endpoint `POST /api/gerarTreinoIa` orquestra uma integração de alto nível entre os microsserviços:
-1. O Gateway consulta a biometria do aluno (peso, altura, idade, histórico de cargas) no `aluno-service` via gRPC.
-2. A inteligência sintetiza a rotina de exercícios com base no objetivo (`HIPERTROFIA`, `EMAGRECIMENTO`, `CONDICIONAMENTO`, `FORCA`), nível do praticante (`INICIANTE`, `INTERMEDIARIO`, `AVANCADO`) e agrupamento muscular desejado.
-3. Se a chave `GEMINI_API_KEY` estiver configurada, o modelo de linguagem do Google Gemini é acionado; se estiver offline no laboratório, o **motor heurístico esportivo local** sintetiza o treino automaticamente, garantindo que a apresentação nunca falhe.
-4. A ficha gerada é persistida diretamente no PostgreSQL através do `treino-service` via gRPC.
-
----
-
-## 💻 Frontend Web SPA
-
-Uma interface web moderna e reativa foi embutida diretamente no API Gateway (`api-gateway/src/main/resources/static/`), acessível imediatamente em:
-```text
-http://localhost:8080/
+docker volume create gymflow-postgres-data
+docker compose --parallel 1 build
+docker compose up -d
+docker compose ps
 ```
 
-### Funcionalidades da Interface:
-- **Dashboard:** Visão geral da rede, status dos serviços e contadores em tempo real.
-- **Gestão de Alunos:** Formulário de cadastro com validação e tabela com alternância de status.
-- **Fichas de Treino:** Criação manual e tela de **execução**, onde o aluno preenche a carga real utilizada (kg) em cada exercício para progressão futura.
-- **Painel IA ✨:** Assistente para gerar treinos personalizados em um clique.
-- **Financeiro:** Emissão de boletos/mensalidades e modal para quitação via PIX ou Cartão.
-- **Central de Demonstração (Checklist de Avaliação):** Botões dedicados para testar ao vivo diante do professor os cenários avaliados:
-  - `201 OK` (Requisição autenticada com sucesso).
-  - `401 Unauthorized` (Barrado pelo filtro de segurança do Gateway).
-  - `400 Bad Request` (Rejeição por Bean Validation de campos obrigatórios).
-  - `404 Not Found` (Consulta de UUID inexistente traduzida de gRPC para HTTP).
+O build é sequencial para reduzir o uso de memória. São iniciados seis contêineres: frontend, Gateway, três microsserviços e PostgreSQL. Aguarde a inicialização dos serviços antes de testar.
 
----
+> Se já houver um PostgreSQL antigo usando `gymflow-postgres-data`, pare-o antes de iniciar o Compose. Não execute dois bancos sobre o mesmo volume. As credenciais do Compose são somente para desenvolvimento; em um volume existente, as variáveis de inicialização não substituem usuários ou senhas.
 
-## ⚙️ Pré-requisitos de Instalação
+| Acesso local | Endereço |
+|---|---|
+| Painel | http://localhost:8081 |
+| Portal do Aluno | http://localhost:8081/aluno.html |
+| Swagger do Gateway | http://localhost:8080/swagger-ui.html |
+| OpenAPI em JSON | http://localhost:8080/v3/api-docs |
 
-- **Java JDK 21** instalado e configurado no `PATH`.
-- **PostgreSQL 14+** em execução (localmente ou no Google Cloud SQL).
-- **Git** e terminal bash.
-- Conexão de rede (para download inicial de dependências do Maven).
+O banco local usa o volume externo `gymflow-postgres-data`. Ele é separado do banco do GCP: cadastros locais não aparecem automaticamente no sistema público.
 
----
+### Comandos do dia a dia
 
-## 🚀 Como Executar o Projeto
+Execute na raiz do repositório:
 
-### 1. Criar o Banco de Dados no PostgreSQL
-Conecte-se ao PostgreSQL e crie o banco da aplicação:
-```sql
-CREATE DATABASE academia;
+```powershell
+# Iniciar os contêineres existentes
+docker compose up -d
+
+# Acompanhar os logs; Ctrl+C encerra apenas o acompanhamento
+docker compose logs -f
+
+# Parar e remover os contêineres, preservando o volume externo
+docker compose down
 ```
 
-### 2. Compilar Todos os Módulos
-Na raiz do repositório (`/home/igord/academia`):
+Após alterações no código, reconstrua os componentes modificados. Exemplo para frontend e Gateway:
+
+```powershell
+docker compose --parallel 1 build frontend api-gateway
+docker compose up -d --no-deps api-gateway frontend
+```
+
+Atualize o navegador com **Ctrl+F5**. Detalhes adicionais da execução local: [DOCKER.md](DOCKER.md).
+
+## Testar o sistema
+
+### Fluxo completo — PowerShell local
+
+```powershell
+# Testar a instalação local
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Gymflow.ps1
+
+# Testar a versão publicada
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Gymflow.ps1 -BaseUrl "https://gymflow-frontend-qywzrohxza-uc.a.run.app"
+```
+
+O teste cria um aluno fictício, cria e consulta uma ficha, gera uma mensalidade e registra/consulta o pagamento. Cada execução deixa novos registros no banco do ambiente escolhido. Nenhum dinheiro é transferido.
+
+### Resiliência
+
+O Gateway aplica **até três tentativas, incluindo a primeira**, às consultas gRPC configuradas, quando ocorre `UNAVAILABLE`. Usa espera inicial de 200 ms, multiplicador 2, teto de 1 s e variação aleatória. O prazo total da chamada inclui as tentativas e esperas: padrão local de 5 s e configuração de 20 s no Gateway do GCP.
+
+Cadastros, pagamentos e atualizações não têm essa política de repetição, para evitar duplicar operações. Falhas são traduzidas para HTTP, incluindo `503` para indisponibilidade e `504` para prazo esgotado.
+
+**Teste local, no PowerShell:**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Resiliencia.ps1
+```
+
+Ele interrompe temporariamente o contêiner financeiro, verifica o tratamento da falha e a disponibilidade de alunos, e reinicia o financeiro.
+
+**Teste no GCP, no Cloud Shell:**
+
 ```bash
-./mvnw clean compile
+cd ~/Trabalho-de-SD
+python3 scripts/Test-Resiliencia-Gcp.py
 ```
 
-### 3. Inicializar os Serviços (Terminais Separados ou VMs)
+Ele altera temporariamente o destino financeiro no Gateway para simular perda de comunicação, verifica HTTP 503, confirma que alunos continuam disponíveis e procura as tentativas 1, 2 e 3 da mesma chamada no Cloud Logging. Ao final, restaura o endereço e verifica HTTP 200. Não desliga o serviço financeiro no Cloud Run.
 
-#### Terminal 1 — Microsserviço de Alunos (Porta gRPC 9091)
+Se houver uma restauração pendente após interrupção do teste:
+
 ```bash
-export DB_URL="jdbc:postgresql://localhost:5432/academia"
-export DB_USER="postgres"
-export DB_PASSWORD="sua_senha_do_postgres"
-
-./mvnw exec:java -pl aluno-service
+python3 scripts/Test-Resiliencia-Gcp.py --restore
 ```
-*(Saída esperada: `[ServidorAlunoGrpc] Servidor iniciado na porta 9091`)*
 
-#### Terminal 2 — Microsserviço de Treinos (Porta gRPC 9092)
+## Banco de dados e migrações
+
+A baseline SQL versionada fica em [`db/migrations/V001__schema_inicial.sql`](db/migrations/V001__schema_inicial.sql). O fluxo aplica o schema, valida sua estrutura e registra a versão em `schema_migrations`, sem inserir dados simulados no banco da aplicação.
+
+| Arquivo | Finalidade |
+|---|---|
+| [`db/Apply.psql`](db/Apply.psql) | Aplicar e registrar a baseline em uma transação. |
+| [`db/Validate.psql`](db/Validate.psql) | Conferir estrutura e contagens em uma transação de leitura. |
+| [`scripts/Test-Schema.ps1`](scripts/Test-Schema.ps1) | Testar criação, reaplicação, preservação de dados e rejeição de divergências em banco descartável. |
+| [`scripts/CloudSql-Schema.py`](scripts/CloudSql-Schema.py) | Executar validação ou aplicação no Cloud SQL usando Secret Manager e um proxy temporário. |
+
+No Cloud Shell, para validar o banco existente:
+
 ```bash
-export DB_URL="jdbc:postgresql://localhost:5432/academia"
-export DB_USER="postgres"
-export DB_PASSWORD="sua_senha_do_postgres"
-
-./mvnw exec:java -pl treino-service
+python3 scripts/CloudSql-Schema.py validate
 ```
-*(Saída esperada: `[ServidorTreinoGrpc] Servidor iniciado na porta 9092`)*
 
-#### Terminal 3 — Microsserviço Financeiro (Porta gRPC 9093)
+Os microsserviços publicados usam `DB_SCHEMA_MODE=validate`; no Compose local, o padrão é `update`. A criação inicial e a aplicação manual da baseline estão descritas em [db/README.md](db/README.md). Os arquivos de `db/tests/` pertencem somente aos testes isolados.
+
+## Publicar atualizações no GCP
+
+Este fluxo atualiza serviços **já criados e configurados**. Requer acesso ao projeto, às imagens e ao Cloud Build. Envie primeiro os commits da `develop` ao GitHub.
+
+No **Cloud Shell**, atualize o código e publique as imagens de frontend e Gateway:
+
 ```bash
-export DB_URL="jdbc:postgresql://localhost:5432/academia"
-export DB_USER="postgres"
-export DB_PASSWORD="sua_senha_do_postgres"
+cd ~/Trabalho-de-SD
+git switch develop
+git pull --ff-only origin develop
+TAG="$(git rev-parse --short HEAD)"
 
-./mvnw exec:java -pl financeiro-service
+gcloud builds submit . \
+  --project=sd2026 \
+  --region=us-central1 \
+  --config=cloudbuild/frontend-gateway.json \
+  --ignore-file=.dockerignore \
+  --substitutions="_TAG=$TAG"
 ```
-*(Saída esperada: `[ServidorFinanceiroGrpc] Servidor iniciado na porta 9093`)*
 
-#### Terminal 4 — API Gateway REST + Frontend + Swagger (Porta HTTP 8080)
+Aguarde **STATUS: SUCCESS** antes de executar os comandos de atualização:
+
 ```bash
-# Caso os serviços gRPC estejam em outras VMs da GCP, configure os IPs:
-# export ALUNO_HOST="IP_INTERNO_ALUNO"
-# export TREINO_HOST="IP_INTERNO_TREINO"
-# export FINANCEIRO_HOST="IP_INTERNO_FINANCEIRO"
+gcloud run services update gymflow-gateway \
+  --project=sd2026 --region=us-central1 \
+  --image="us-central1-docker.pkg.dev/sd2026/gymflow/api-gateway:$TAG"
 
-./mvnw spring-boot:run -pl api-gateway
+gcloud run services update gymflow-frontend \
+  --project=sd2026 --region=us-central1 \
+  --image="us-central1-docker.pkg.dev/sd2026/gymflow/frontend:$TAG"
 ```
-*(Saída esperada: `Tomcat started on port 8080 (http)`)*
 
----
+Esses comandos alteram as imagens, preservando variáveis, referências a secrets e identidades existentes. A configuração [`cloudbuild/frontend-gateway.json`](cloudbuild/frontend-gateway.json) constrói somente esses dois componentes; alterações em outros microsserviços exigem publicar e atualizar suas respectivas imagens.
 
-## 🧪 Como Testar no Postman
+A tag identifica o commit usado no build, não o estado atual de todas as revisões. O teste de resiliência também cria revisões ao alterar e restaurar o destino financeiro. Para verificar as revisões e imagens efetivas, consulte o Cloud Run. Informações complementares: [GCP.md](GCP.md).
 
-### Opção 1 — Importação via URL (Recomendado)
-1. Abra o Postman e clique em **Import > Link**.
-2. Cole a URL: `http://localhost:8080/v3/api-docs`
-3. O Postman importará automaticamente todos os endpoints documentados pelo Swagger/OpenAPI.
+## Integrantes
 
-### Opção 2 — Importação via Arquivo
-Uma coleção completa e atualizada está pronta para importação no arquivo:
-👉 [`academia-postman-collection.json`](academia-postman-collection.json)
-
-1. Abra o Postman e clique em **Import**.
-2. Selecione o arquivo `academia-postman-collection.json`.
-3. Execute primeiro a requisição `0. Autenticação > Realizar Login` para receber o token JWT.
-4. O Postman já possui a variável `{{baseUrl}} = http://localhost:8080` e todas as chamadas configuradas com `Bearer {{jwtToken}}`.
-
----
-
-## ☁️ Implantação no Google Cloud Platform (GCP)
-
-Para a apresentação oficial com VMs distribuídas na GCP:
-
-1. **Firewall VPC na GCP:**
-   - Liberar entrada TCP na porta `8080` (API Gateway) para `0.0.0.0/0`.
-   - As portas gRPC `9091`, `9092` e `9093` devem ficar acessíveis **somente na rede interna (VPC)** entre as VMs.
-2. **Cloud SQL (PostgreSQL):**
-   - Autorizar os IPs das VMs que executam os serviços de backend (`aluno-service`, `treino-service`, `financeiro-service`).
-   - O `api-gateway` **não acessa o banco diretamente**, garantindo o isolamento da arquitetura.
-3. **Inicialização no Cloud:**
-   - Basta passar os IPs internos nas variáveis `ALUNO_HOST`, `TREINO_HOST` e `FINANCEIRO_HOST` ao rodar o `api-gateway`.
+- Andressa Gonçalves Barros
+- Igor Carvalho Dantas
+- Wallace Elpidio Pereira Cardoso
