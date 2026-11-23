@@ -7,6 +7,11 @@ class GymApp {
   constructor() {
     this.token = localStorage.getItem('gymdist_jwt_token') || null;
     this.alunos = [];
+    this.consultaFichas = 0;
+    this.geracaoTreino = 0;
+    this.consultaMensalidades = 0;
+    this.contextoAba = 0;
+    this.estadosFormularios = new Map();
     this.init();
   }
 
@@ -21,11 +26,12 @@ class GymApp {
       // Abre modal de login ou informa usuário
       this.atualizarStatusJwt();
       this.abrirModal('modal-login');
-      this.mostrarToast('Por favor, efetue login para gerenciar o sistema.', 'info');
+      this.mostrarToast('Entre na demonstração para explorar o sistema.', 'info');
     }
 
     this.adicionarExercicioLinha('Supino Reto', 'Peito', 4, 10, 30);
     this.adicionarExercicioLinha('Tríceps Corda', 'Tríceps', 3, 12, 15);
+    document.querySelectorAll('.tab-pane form').forEach(form => this.registrarEstadoFormulario(form.id));
   }
 
   // ─── Autenticação & JWT ───────────────────────────────────────────────────
@@ -33,18 +39,15 @@ class GymApp {
   atualizarStatusJwt() {
     const indicator = document.getElementById('jwt-indicator');
     const label = document.getElementById('jwt-label');
-    const textarea = document.getElementById('token-textarea');
     const btnLogin = document.getElementById('btn-login-modal');
 
     if (this.token) {
       indicator?.classList.add('active');
-      if (label) label.textContent = 'Admin Autenticado';
-      if (textarea) textarea.value = this.token;
+      if (label) label.textContent = 'Sessão de demonstração';
       if (btnLogin) btnLogin.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sair`;
     } else {
       indicator?.classList.remove('active');
-      if (label) label.textContent = 'Não Autenticado';
-      if (textarea) textarea.value = '';
+      if (label) label.textContent = 'Sem sessão de demonstração';
       if (btnLogin) btnLogin.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Entrar`;
     }
   }
@@ -60,40 +63,32 @@ class GymApp {
   }
 
   async obterTokenRapido() {
+    const botao = document.getElementById('btn-quick-token');
+    if (botao.disabled) return;
+    botao.disabled = true;
     try {
       const resp = await fetch('/api/gerarToken');
-      if (resp.ok) {
-        const data = await resp.json();
-        this.setToken(data.token);
-        this.mostrarToast('Sessão iniciada como Administrador!', 'success');
-        await this.carregarAlunos();
-      }
+      if (!resp.ok) throw new Error('Não foi possível iniciar a demonstração. Tente novamente.');
+      const data = await resp.json();
+      if (!data.token) throw new Error('Não foi possível iniciar a demonstração.');
+      this.setToken(data.token);
+      this.fecharModal('modal-login');
+      this.mostrarToast('Sessão de demonstração iniciada.', 'success');
+      await this.carregarAlunos();
     } catch (e) {
-      console.warn('Erro ao obter token:', e);
+      this.mostrarToast(e.message || 'Falha ao iniciar a demonstração.', 'danger');
+    } finally {
+      botao.disabled = false;
     }
   }
 
-  async realizarLogin(username, senha) {
-    try {
-      const resp = await fetch('/api/autenticar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, senha })
-      });
-
-      if (resp.ok) {
-        const data = await resp.json();
-        this.setToken(data.token);
-        this.mostrarToast(`Bem-vindo, ${data.usuario}!`, 'success');
-        this.fecharModal('modal-login');
-        await this.carregarAlunos();
-      } else {
-        const err = await resp.json().catch(() => ({ mensagem: 'Credenciais inválidas' }));
-        this.mostrarToast(`Falha no login: ${err.mensagem || 'Credenciais inválidas'}`, 'danger');
-      }
-    } catch (e) {
-      this.mostrarToast(`Erro de conexão: ${e.message}`, 'danger');
-    }
+  encerrarSessao(confirmar = true) {
+    const alteracoes = Array.from(document.querySelectorAll('.tab-pane')).some(aba => this.abaTemAlteracoes(aba));
+    if (confirmar && alteracoes && !window.confirm('Há alterações não salvas. Deseja descartá-las e sair da demonstração?')) return false;
+    this.setToken(null);
+    // Recarrega a pagina sem o token, limpando os dados e formularios em memoria.
+    window.location.reload();
+    return true;
   }
 
   // ─── Wrapper de Requisições com JWT (Bearer) ──────────────────────────────
@@ -114,9 +109,7 @@ class GymApp {
 
       // Se não autenticado (401), exige login
       if (response.status === 401) {
-        this.setToken(null);
-        this.mostrarToast('Sessão expirada ou não autorizada. Faça login.', 'warning');
-        this.abrirModal('modal-login');
+        this.encerrarSessao(false);
       }
 
       return response;
@@ -291,6 +284,7 @@ class GymApp {
       const aluno = await resp.json();
       this.mostrarToast(`Aluno "${aluno.nome}" cadastrado com sucesso!`, 'success');
       document.getElementById('form-cadastrar-aluno').reset();
+      this.registrarEstadoFormulario('form-cadastrar-aluno');
       await this.carregarAlunos();
     } else {
       const err = await resp.json().catch(() => ({ mensagem: 'Erro desconhecido ao cadastrar aluno' }));
@@ -345,8 +339,31 @@ class GymApp {
     });
   }
 
+  identificacaoAluno(alunoId) {
+    const aluno = this.alunos.find(a => a.id === alunoId);
+    const identificacao = document.createElement('small');
+    identificacao.className = 'text-muted d-block';
+    identificacao.textContent = `Aluno: ${aluno ? aluno.nome : alunoId}`;
+    return identificacao.outerHTML;
+  }
+
+  limparResultadoIa() {
+    this.geracaoTreino++;
+    const container = document.getElementById('ia-resultado-container');
+    if (container) {
+      container.textContent = 'Selecione um aluno e gere um treino para visualizar o resultado.';
+    }
+  }
+
+  abrirCadastroAluno() {
+    if (!this.navegarParaAba('tab-alunos')) return;
+    document.getElementById('painel-cadastrar-aluno').open = true;
+    document.getElementById('aluno-nome').focus();
+  }
+
   abrirFichasDoAluno(alunoId) {
-    this.navegarParaAba('tab-treinos');
+    if (!this.navegarParaAba('tab-treinos')) return;
+    document.getElementById('painel-fichas-aluno').open = true;
     const selectFiltro = document.getElementById('select-filtro-aluno-treino');
     if (selectFiltro) selectFiltro.value = alunoId;
     const selectCriar = document.getElementById('treino-aluno-select');
@@ -355,7 +372,8 @@ class GymApp {
   }
 
   abrirMensalidadesDoAluno(alunoId) {
-    this.navegarParaAba('tab-financeiro');
+    if (!this.navegarParaAba('tab-financeiro')) return;
+    document.getElementById('painel-mensalidades-aluno').open = true;
     const selectFiltro = document.getElementById('select-filtro-aluno-fin');
     if (selectFiltro) selectFiltro.value = alunoId;
     const selectGerar = document.getElementById('fin-aluno-select');
@@ -372,19 +390,42 @@ class GymApp {
     const div = document.createElement('div');
     div.className = 'exercicio-row';
     div.id = id;
-    div.innerHTML = `
-      <input type="text" class="form-control" placeholder="Exercício (ex: Supino)"
-             value="${nome}" required data-field="nome">
-      <input type="text" class="form-control" placeholder="Grupo (ex: Peito)"
-             value="${grupo}" data-field="grupo">
-      <input type="number" class="form-control" placeholder="Séries"
-             value="${series}" min="1" required data-field="series">
-      <input type="number" class="form-control" placeholder="Reps"
-             value="${reps}" min="1" required data-field="reps">
-      <input type="number" step="0.5" class="form-control" placeholder="Sugerido (kg)"
-             value="${carga}" min="0" data-field="carga">
-      <button type="button" class="btn btn-xs btn-danger btn-remove-row" onclick="document.getElementById('${id}').remove()">✕</button>
-    `;
+    const campos = [
+      { campo: 'nome', rotulo: 'Exercício', tipo: 'text', valor: nome, placeholder: 'Ex.: Supino', obrigatorio: true },
+      { campo: 'grupo', rotulo: 'Grupo muscular', tipo: 'text', valor: grupo, placeholder: 'Ex.: Peito' },
+      { campo: 'series', rotulo: 'Séries', tipo: 'number', valor: series, minimo: 1, obrigatorio: true },
+      { campo: 'reps', rotulo: 'Repetições', tipo: 'number', valor: reps, minimo: 1, obrigatorio: true },
+      { campo: 'carga', rotulo: 'Carga sugerida (kg)', tipo: 'number', valor: carga, minimo: 0, passo: '0.5' }
+    ];
+
+    campos.forEach(campo => {
+      const label = document.createElement('label');
+      label.className = 'exercicio-campo';
+      const texto = document.createElement('span');
+      texto.textContent = campo.rotulo;
+      const input = document.createElement('input');
+      input.id = `${id}_${campo.campo}`;
+      label.htmlFor = input.id;
+      input.type = campo.tipo;
+      input.className = 'form-control';
+      input.dataset.field = campo.campo;
+      input.value = campo.valor;
+      input.required = Boolean(campo.obrigatorio);
+      if (campo.placeholder) input.placeholder = campo.placeholder;
+      if (campo.minimo !== undefined) input.min = campo.minimo;
+      if (campo.passo) input.step = campo.passo;
+      label.append(texto, input);
+      div.appendChild(label);
+    });
+
+    const remover = document.createElement('button');
+    remover.type = 'button';
+    remover.className = 'btn btn-xs btn-danger btn-remove-row';
+    remover.textContent = '×';
+    remover.title = 'Remover exercício';
+    remover.setAttribute('aria-label', 'Remover exercício');
+    remover.addEventListener('click', () => div.remove());
+    div.appendChild(remover);
     container.appendChild(div);
   }
 
@@ -396,6 +437,7 @@ class GymApp {
       return;
     }
 
+    const contexto = this.contextoAba;
     const resp = await this.apiRequest('/api/criarFichaTreino', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -404,9 +446,13 @@ class GymApp {
     if (resp.status === 201) {
       const ficha = await resp.json();
       this.mostrarToast(`Ficha "${ficha.titulo}" criada com sucesso!`, 'success');
+      if (contexto !== this.contextoAba) return;
+      if (document.getElementById('treino-aluno-select').value !== dados.alunoId) return;
       document.getElementById('form-criar-ficha').reset();
+      document.getElementById('treino-aluno-select').value = dados.alunoId;
       document.getElementById('exercicios-container').innerHTML = '';
       this.adicionarExercicioLinha();
+      this.registrarEstadoFormulario('form-criar-ficha');
 
       // Seleciona o aluno no filtro lateral e carrega as fichas automaticamente
       const selectFiltro = document.getElementById('select-filtro-aluno-treino');
@@ -414,6 +460,7 @@ class GymApp {
       await this.carregarFichasDoAluno(dados.alunoId);
     } else {
       const err = await resp.json().catch(() => ({ mensagem: 'Falha ao criar ficha de treino' }));
+      if (contexto !== this.contextoAba) return;
       this.tratarErrosApi(err, 'alerta-erro-ficha');
     }
   }
@@ -421,6 +468,11 @@ class GymApp {
   async carregarFichasDoAluno(alunoId) {
     const container = document.getElementById('fichas-container');
     if (!container) return;
+    const consulta = ++this.consultaFichas;
+    for (const id of ['treino-aluno-select', 'select-filtro-aluno-treino']) {
+      const select = document.getElementById(id);
+      if (select) select.value = alunoId;
+    }
 
     if (!alunoId) {
       container.innerHTML = '<p class="text-muted text-center py-4">Selecione um aluno acima para ver suas fichas e registrar execuções.</p>';
@@ -431,11 +483,14 @@ class GymApp {
 
     try {
       const resp = await this.apiRequest(`/api/listarFichasAluno/${alunoId}`);
+      if (consulta !== this.consultaFichas) return;
       if (resp.ok) {
         const fichas = await resp.json();
+        if (consulta !== this.consultaFichas) return;
         this.renderizarFichas(fichas, container, alunoId);
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Falha ao buscar fichas de treino.' }));
+        if (consulta !== this.consultaFichas) return;
         this.tratarErrosApi(err);
         container.innerHTML = `
           <div class="alert alert-danger mt-3">
@@ -452,6 +507,7 @@ class GymApp {
         `;
       }
     } catch (e) {
+      if (consulta !== this.consultaFichas) return;
       container.innerHTML = `
         <div class="alert alert-danger mt-3">
           <span class="alert-icon">⚠️</span>
@@ -482,7 +538,9 @@ class GymApp {
     container.innerHTML = fichas.map(f => {
       const badgeStatus = f.status === 'CONCLUIDO'
         ? '<span class="badge badge-success">Concluído</span>'
-        : '<span class="badge badge-warning">Pendente</span>';
+        : f.itens.some(item => item.concluido)
+          ? '<span class="badge badge-warning">Em andamento</span>'
+          : '<span class="badge badge-warning">Pendente</span>';
 
       const itensHtml = f.itens.map(item => `
         <div class="exercicio-item-card" data-item-id="${item.id}">
@@ -508,6 +566,7 @@ class GymApp {
           <div class="ficha-header">
             <div>
               <strong>${f.titulo}</strong>
+              ${this.identificacaoAluno(f.alunoId || alunoId)}
               <small class="text-muted d-block">Objetivo: ${f.objetivo} · ${f.dataCriacao || 'Hoje'}</small>
             </div>
             ${badgeStatus}
@@ -549,7 +608,9 @@ class GymApp {
 
     if (resp.ok) {
       const fichaAtualizada = await resp.json();
-      this.mostrarToast('Execução do treino registrada! Cargas reais salvas.', 'success');
+      this.mostrarToast(fichaAtualizada.status === 'CONCLUIDO'
+        ? 'Treino concluído! Todos os exercícios foram feitos.'
+        : 'Progresso salvo. O treino continua pendente de conclusão.', 'success');
       const alunoId = document.getElementById('select-filtro-aluno-treino').value;
       if (alunoId) await this.carregarFichasDoAluno(alunoId);
     } else {
@@ -570,6 +631,7 @@ class GymApp {
 
     const btn = document.getElementById('btn-submit-ia');
     const container = document.getElementById('ia-resultado-container');
+    const geracao = ++this.geracaoTreino;
     btn.disabled = true;
     btn.textContent = 'Gerando treino com IA...';
     container.innerHTML = '<p class="text-center py-5">⏳ Consultando biometria e sintetizando plano de treino personalizado...</p>';
@@ -583,13 +645,17 @@ class GymApp {
       if (resp.ok) {
         const ficha = await resp.json();
         this.mostrarToast('Treino gerado pela IA e salvo no banco de dados!', 'success');
+        if (geracao !== this.geracaoTreino) return;
         this.renderizarResultadoIa(ficha, container, dados.alunoId);
+        this.registrarEstadoFormulario('form-gerar-ia');
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Falha na geração com IA' }));
+        if (geracao !== this.geracaoTreino) return;
         this.tratarErrosApi(err, 'alerta-erro-ia');
         container.innerHTML = `<div class="alert alert-danger mt-3">⚠️ ${err.mensagem || 'Falha ao gerar treino.'}</div>`;
       }
     } catch (e) {
+      if (geracao !== this.geracaoTreino) return;
       container.innerHTML = `<div class="alert alert-danger mt-3">❌ Erro de comunicação: ${e.message}</div>`;
     } finally {
       btn.disabled = false;
@@ -611,6 +677,7 @@ class GymApp {
         <div class="ficha-header">
           <div>
             <strong style="color:var(--accent-glow);">${ficha.titulo}</strong>
+            ${this.identificacaoAluno(ficha.alunoId || alunoId)}
             <small class="text-muted d-block">Objetivo: ${ficha.objetivo} · Gerado com IA</small>
           </div>
           <span class="badge badge-success">Salvo no Banco</span>
@@ -638,6 +705,7 @@ class GymApp {
       return;
     }
 
+    const contexto = this.contextoAba;
     const resp = await this.apiRequest('/api/gerarMensalidade', {
       method: 'POST',
       body: JSON.stringify(dados)
@@ -646,12 +714,15 @@ class GymApp {
     if (resp.status === 201) {
       const mensalidade = await resp.json();
       this.mostrarToast(`Mensalidade de R$ ${mensalidade.valor.toFixed(2)} gerada com sucesso!`, 'success');
+      if (contexto !== this.contextoAba) return;
       document.getElementById('form-gerar-mensalidade').reset();
+      this.registrarEstadoFormulario('form-gerar-mensalidade');
       const selectFiltro = document.getElementById('select-filtro-aluno-fin');
       if (selectFiltro) selectFiltro.value = dados.alunoId;
       await this.carregarMensalidadesDoAluno(dados.alunoId);
     } else {
       const err = await resp.json().catch(() => ({ mensagem: 'Falha ao gerar mensalidade' }));
+      if (contexto !== this.contextoAba) return;
       this.tratarErrosApi(err, 'alerta-erro-mensalidade');
     }
   }
@@ -659,6 +730,7 @@ class GymApp {
   async carregarMensalidadesDoAluno(alunoId) {
     const tbody = document.getElementById('tbody-mensalidades');
     if (!tbody) return;
+    const consulta = ++this.consultaMensalidades;
 
     if (!alunoId) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Selecione um aluno acima para listar cobranças.</td></tr>';
@@ -669,11 +741,14 @@ class GymApp {
 
     try {
       const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${alunoId}`);
+      if (consulta !== this.consultaMensalidades) return;
       if (resp.ok) {
         const lista = await resp.json();
+        if (consulta !== this.consultaMensalidades) return;
         this.renderizarMensalidades(lista, tbody, alunoId);
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Falha ao buscar mensalidades.' }));
+        if (consulta !== this.consultaMensalidades) return;
         this.tratarErrosApi(err);
         tbody.innerHTML = `
           <tr>
@@ -691,6 +766,7 @@ class GymApp {
         `;
       }
     } catch (e) {
+      if (consulta !== this.consultaMensalidades) return;
       tbody.innerHTML = `
         <tr>
           <td colspan="5" class="text-center py-4 text-danger">
@@ -723,7 +799,7 @@ class GymApp {
           : '<span class="badge badge-warning">Pendente</span>';
 
       const botaoAcao = m.status !== 'PAGO'
-        ? `<button class="btn btn-xs btn-primary" onclick="app.abrirModalPagamento('${m.id}', ${m.valor})">Quitar Pagamento</button>`
+        ? `<button class="btn btn-xs btn-primary" onclick="app.abrirModalPagamento('${m.id}', ${m.valor})">Registrar pagamento recebido</button>`
         : `<small class="text-muted">via ${m.formaPagamento || 'PIX'}</small>`;
 
       return `
@@ -740,7 +816,7 @@ class GymApp {
 
   abrirModalPagamento(id, valor) {
     document.getElementById('pagamento-mensalidade-id').value = id;
-    document.getElementById('pagamento-detalhes').textContent = `Valor a pagar: R$ ${valor.toFixed(2)}`;
+    document.getElementById('pagamento-detalhes').textContent = `Valor recebido: R$ ${valor.toFixed(2)}`;
     this.abrirModal('modal-pagamento');
   }
 
@@ -751,7 +827,7 @@ class GymApp {
     });
 
     if (resp.ok) {
-      this.mostrarToast(`Pagamento registrado com sucesso via ${formaPagamento}!`, 'success');
+      this.mostrarToast(`Recebimento registrado (${formaPagamento}). Mensalidade marcada como paga.`, 'success');
       this.fecharModal('modal-pagamento');
       const alunoId = document.getElementById('select-filtro-aluno-fin').value;
       if (alunoId) await this.carregarMensalidadesDoAluno(alunoId);
@@ -802,13 +878,68 @@ class GymApp {
 
   // ─── UI Helpers ───────────────────────────────────────────────────────────
 
+  estadoFormulario(form) {
+    return JSON.stringify(Array.from(form.querySelectorAll('input, select, textarea'))
+      .filter(campo => !['treino-aluno-select', 'ia-aluno-select', 'fin-aluno-select'].includes(campo.id))
+      .map(campo => [campo.type, campo.type === 'checkbox' ? campo.checked : campo.value]));
+  }
+
+  registrarEstadoFormulario(formId) {
+    const form = document.getElementById(formId);
+    if (form) this.estadosFormularios.set(formId, this.estadoFormulario(form));
+  }
+
+  abaTemAlteracoes(aba) {
+    const formularioAlterado = Array.from(aba.querySelectorAll('form')).some(form =>
+      this.estadosFormularios.has(form.id) && this.estadosFormularios.get(form.id) !== this.estadoFormulario(form));
+    const execucaoAlterada = Array.from(aba.querySelectorAll('.input-carga-real, .chk-concluido')).some(campo =>
+      campo.type === 'checkbox' ? campo.checked !== campo.defaultChecked : campo.value !== campo.defaultValue);
+    return formularioAlterado || execucaoAlterada;
+  }
+
+  limparContextoAba(aba) {
+    this.contextoAba++;
+    aba.querySelectorAll('form').forEach(form => form.reset());
+    aba.querySelectorAll('select[id$="aluno-select"], select[id^="select-filtro-aluno-"]').forEach(select => {
+      select.value = '';
+    });
+    if (aba.id === 'tab-treinos') {
+      this.carregarFichasDoAluno('');
+      document.getElementById('exercicios-container').replaceChildren();
+      this.adicionarExercicioLinha();
+      document.getElementById('painel-nova-ficha').open = false;
+      document.getElementById('painel-fichas-aluno').open = true;
+    } else if (aba.id === 'tab-alunos') {
+      document.getElementById('painel-cadastrar-aluno').open = false;
+      document.getElementById('painel-lista-alunos').open = true;
+    } else if (aba.id === 'tab-ia') {
+      this.limparResultadoIa();
+    } else if (aba.id === 'tab-financeiro') {
+      this.carregarMensalidadesDoAluno('');
+      document.getElementById('painel-gerar-mensalidade').open = false;
+      document.getElementById('painel-mensalidades-aluno').open = true;
+    }
+    aba.querySelectorAll('[id^="alerta-erro-"]').forEach(alerta => this.ocultarAlerta(alerta.id));
+    aba.querySelectorAll('form').forEach(form => this.registrarEstadoFormulario(form.id));
+  }
+
   navegarParaAba(tabId) {
+    if (!document.getElementById(tabId)?.classList.contains('tab-pane')) return false;
+    const atual = document.querySelector('.tab-pane.active');
+    if (atual?.id === tabId) return true;
+    if (atual) {
+      if (this.abaTemAlteracoes(atual) && !window.confirm('Há alterações não salvas nesta aba. Deseja descartá-las e mudar de aba?')) {
+        return false;
+      }
+      this.limparContextoAba(atual);
+    }
     document.querySelectorAll('.nav-tab').forEach(t => {
       t.classList.toggle('active', t.dataset.tab === tabId);
     });
     document.querySelectorAll('.tab-pane').forEach(p => {
       p.classList.toggle('active', p.id === tabId);
     });
+    return true;
   }
 
   abrirModal(modalId) {
@@ -887,28 +1018,12 @@ class GymApp {
       tab.addEventListener('click', () => this.navegarParaAba(tab.dataset.tab));
     });
 
-    // Modal de Login
+    // Acesso de demonstracao e saida direta.
     document.getElementById('btn-login-modal')?.addEventListener('click', () => {
-      this.abrirModal('modal-login');
+      if (this.token) this.encerrarSessao();
+      else this.abrirModal('modal-login');
     });
-
-    document.getElementById('btn-quick-token')?.addEventListener('click', async () => {
-      await this.obterTokenRapido();
-      this.fecharModal('modal-login');
-    });
-
-    document.getElementById('btn-clear-token')?.addEventListener('click', () => {
-      this.setToken(null);
-      this.mostrarToast('Sessão encerrada. Faça login para continuar.', 'warning');
-      this.fecharModal('modal-login');
-    });
-
-    document.getElementById('form-login')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const user = document.getElementById('login-username').value;
-      const pass = document.getElementById('login-senha').value;
-      this.realizarLogin(user, pass);
-    });
+    document.getElementById('btn-quick-token')?.addEventListener('click', () => this.obterTokenRapido());
 
     // Form Aluno
     document.getElementById('form-cadastrar-aluno')?.addEventListener('submit', (e) => {
@@ -954,6 +1069,10 @@ class GymApp {
       this.criarFichaTreino({ alunoId, titulo, objetivo, itens });
     });
 
+    document.getElementById('treino-aluno-select')?.addEventListener('change', (e) => {
+      this.carregarFichasDoAluno(e.target.value);
+    });
+
     document.getElementById('select-filtro-aluno-treino')?.addEventListener('change', (e) => {
       this.carregarFichasDoAluno(e.target.value);
     });
@@ -966,6 +1085,10 @@ class GymApp {
       } else {
         this.mostrarToast('Selecione um aluno para recarregar suas fichas.', 'warning');
       }
+    });
+
+    document.getElementById('ia-aluno-select')?.addEventListener('change', () => {
+      this.limparResultadoIa();
     });
 
     // Form Gerador IA

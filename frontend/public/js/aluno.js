@@ -55,8 +55,8 @@ class AlunoApp {
       });
 
       if (response.status === 401) {
-        this.logout();
-        this.mostrarToast('Sessão expirada. Faça login novamente.', 'warning');
+        this.logout(false);
+        this.mostrarToast('Sessão de demonstração expirada. Entre novamente.', 'warning');
       }
 
       return response;
@@ -100,42 +100,47 @@ class AlunoApp {
     }
   }
 
-  async login(alunoId, senha) {
+  async login(alunoId) {
+    const botao = document.getElementById('btn-entrar-aluno');
+    if (botao.disabled) return;
+    botao.disabled = true;
     try {
       // Autentica via JWT
-      const resp = await fetch('/api/autenticar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'aluno', senha })
-      });
+      const resp = await fetch('/api/gerarToken');
 
       if (!resp.ok) {
-        this.mostrarToast('Credenciais inválidas para o login.', 'danger');
+        this.mostrarToast('Não foi possível iniciar a demonstração.', 'danger');
         return;
       }
 
       const data = await resp.json();
+      if (!data.token) throw new Error('Não foi possível iniciar a demonstração.');
       this.token = data.token;
       this.alunoId = alunoId;
 
       localStorage.setItem('gymdist_aluno_jwt', this.token);
       localStorage.setItem('gymdist_aluno_id', this.alunoId);
 
-      this.mostrarToast('Login realizado com sucesso! Bem-vindo.', 'success');
+      this.mostrarToast('Demonstração do portal iniciada.', 'success');
       await this.carregarDadosDoAluno();
     } catch (e) {
       this.mostrarToast(`Erro ao conectar: ${e.message}`, 'danger');
+    } finally {
+      botao.disabled = false;
     }
   }
 
-  logout() {
+  logout(confirmar = true) {
+    const alteracoes = Array.from(document.querySelectorAll('.input-carga-real, .chk-concluido')).some(campo =>
+      campo.type === 'checkbox' ? campo.checked !== campo.defaultChecked : campo.value !== campo.defaultValue);
+    if (confirmar && alteracoes && !window.confirm('Há alterações no treino não salvas. Deseja descartá-las e sair da demonstração?')) return false;
     this.token = null;
     this.alunoId = null;
     this.alunoDados = null;
     localStorage.removeItem('gymdist_aluno_jwt');
     localStorage.removeItem('gymdist_aluno_id');
-    this.mostrarTelaLogin();
-    this.mostrarToast('Sessão encerrada.', 'info');
+    window.location.reload();
+    return true;
   }
 
   // ─── Carregamento de Dados do Aluno ──────────────────────────────────────
@@ -156,7 +161,7 @@ class AlunoApp {
           this.carregarMinhasMensalidades()
         ]);
       } else {
-        this.logout();
+        this.logout(false);
       }
     } catch (e) {
       console.error('Erro ao buscar dados do aluno:', e);
@@ -246,7 +251,9 @@ class AlunoApp {
     container.innerHTML = fichas.map(f => {
       const badgeStatus = f.status === 'CONCLUIDO'
         ? '<span class="badge badge-success">Concluído</span>'
-        : '<span class="badge badge-warning">Pendente</span>';
+        : f.itens.some(item => item.concluido)
+          ? '<span class="badge badge-warning">Em andamento</span>'
+          : '<span class="badge badge-warning">Pendente</span>';
 
       const itensHtml = f.itens.map(item => `
         <div class="exercicio-item-card" data-item-id="${item.id}">
@@ -328,7 +335,10 @@ class AlunoApp {
       });
 
       if (resp.ok) {
-        this.mostrarToast('Parabéns! Execução do treino registrada com sucesso.', 'success');
+        const fichaAtualizada = await resp.json();
+        this.mostrarToast(fichaAtualizada.status === 'CONCLUIDO'
+          ? 'Treino concluído! Todos os exercícios foram feitos.'
+          : 'Progresso salvo. O treino continua pendente de conclusão.', 'success');
         await this.carregarMeusTreinos();
       } else {
         const err = await resp.json().catch(() => ({ mensagem: 'Falha ao registrar execução.' }));
@@ -345,7 +355,7 @@ class AlunoApp {
     const tbody = document.getElementById('tbody-minhas-mensalidades');
     if (!tbody || !this.alunoId) return;
 
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">⏳ Carregando mensalidades...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">⏳ Carregando mensalidades...</td></tr>';
 
     try {
       const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${this.alunoId}`);
@@ -353,16 +363,16 @@ class AlunoApp {
         const mensalidades = await resp.json();
         this.renderizarMensalidades(mensalidades, tbody);
       } else {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Erro ao carregar mensalidades.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Erro ao carregar mensalidades.</td></tr>';
       }
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Erro de conexão: ${e.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Erro de conexão: ${e.message}</td></tr>`;
     }
   }
 
   renderizarMensalidades(mensalidades, tbody) {
     if (!mensalidades || mensalidades.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Você não possui faturas ou mensalidades registradas.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Você não possui faturas ou mensalidades registradas.</td></tr>';
       return;
     }
 
@@ -374,10 +384,6 @@ class AlunoApp {
           : '<span class="badge badge-warning">Pendente</span>';
 
       const valorFmt = `R$ ${Number(m.valor).toFixed(2)}`;
-      const botaoAcao = m.status !== 'PAGO'
-        ? `<button class="btn btn-xs btn-primary" onclick="alunoApp.abrirModalPagamento('${m.id}', '${m.descricao || 'Mensalidade'}', ${m.valor})">Pagar Agora</button>`
-        : '<span class="text-xs text-muted">Quitado ✓</span>';
-
       return `
         <tr>
           <td><strong>${m.descricao || 'Mensalidade'}</strong></td>
@@ -386,36 +392,9 @@ class AlunoApp {
           <td>${statusBadge}</td>
           <td>${m.dataPagamento || '—'}</td>
           <td>${m.formaPagamento || '—'}</td>
-          <td>${botaoAcao}</td>
         </tr>
       `;
     }).join('');
-  }
-
-  abrirModalPagamento(id, descricao, valor) {
-    document.getElementById('aluno-pagamento-id').value = id;
-    document.getElementById('aluno-pagamento-detalhes').textContent = `${descricao} — R$ ${Number(valor).toFixed(2)}`;
-    this.abrirModal('modal-pagamento-aluno');
-  }
-
-  async confirmarPagamento(id, formaPagamento) {
-    try {
-      const resp = await this.apiRequest(`/api/registrarPagamentoMensalidade/${id}`, {
-        method: 'POST',
-        body: JSON.stringify({ formaPagamento })
-      });
-
-      if (resp.ok) {
-        this.mostrarToast('Pagamento confirmado com sucesso!', 'success');
-        this.fecharModal('modal-pagamento-aluno');
-        await this.carregarMinhasMensalidades();
-      } else {
-        const err = await resp.json().catch(() => ({ mensagem: 'Falha no pagamento' }));
-        this.mostrarToast(err.mensagem || 'Não foi possível quitar a mensalidade.', 'danger');
-      }
-    } catch (e) {
-      this.mostrarToast(`Falha de comunicação: ${e.message}`, 'danger');
-    }
   }
 
   // ─── Navegação e UI Helpers ──────────────────────────────────────────────
@@ -486,13 +465,12 @@ class AlunoApp {
     document.getElementById('form-login-aluno')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const alunoId = document.getElementById('login-aluno-select').value;
-      const senha = document.getElementById('login-senha-aluno').value;
 
       if (!alunoId) {
         this.mostrarToast('Selecione seu nome de aluno.', 'warning');
         return;
       }
-      this.login(alunoId, senha);
+      this.login(alunoId);
     });
 
     // Logout
@@ -512,13 +490,7 @@ class AlunoApp {
       this.mostrarToast('Mensalidades atualizadas.', 'info');
     });
 
-    // Submissão do Pagamento
-    document.getElementById('form-aluno-pagar')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const id = document.getElementById('aluno-pagamento-id').value;
-      const forma = document.getElementById('aluno-pagamento-forma').value;
-      this.confirmarPagamento(id, forma);
-    });
+
   }
 }
 

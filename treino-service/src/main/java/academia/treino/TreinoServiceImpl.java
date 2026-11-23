@@ -225,24 +225,34 @@ public class TreinoServiceImpl extends TreinoServiceGrpc.TreinoServiceImplBase {
 
             FichaTreino ficha = opcional.get();
 
-            tx.begin();
-
-            // Atualiza cada item com a carga real utilizada pelo aluno
+            // Valida todos os itens antes de alterar qualquer registro.
             for (ExecucaoItemRequest execItem : request.getItensList()) {
                 UUID itemId = UUID.fromString(execItem.getItemId().trim());
-                Optional<ItemTreino> itemOpcional = repositorio.buscarItemPorId(itemId);
-
-                if (itemOpcional.isPresent()) {
-                    ItemTreino item = itemOpcional.get();
-                    item.setCargaUsada(execItem.getCargaUsada());
-                    item.setConcluido(execItem.getConcluido());
-                    repositorio.atualizarItem(item);
+                if (ficha.getItens().stream().noneMatch(item -> item.getId().equals(itemId))) {
+                    throw new IllegalArgumentException("O exercício informado não pertence a esta ficha.");
+                }
+                if (!Double.isFinite(execItem.getCargaUsada()) || execItem.getCargaUsada() < 0) {
+                    throw new IllegalArgumentException("A carga usada deve ser um número maior ou igual a zero.");
                 }
             }
 
-            // Marca a ficha como concluída
-            ficha.setStatus("CONCLUIDO");
-            ficha.setDataConclusao(LocalDateTime.now());
+            tx.begin();
+            for (ExecucaoItemRequest execItem : request.getItensList()) {
+                UUID itemId = UUID.fromString(execItem.getItemId().trim());
+                ItemTreino item = ficha.getItens().stream()
+                    .filter(candidato -> candidato.getId().equals(itemId)).findFirst().orElseThrow();
+                item.setCargaUsada(execItem.getCargaUsada());
+                item.setConcluido(execItem.getConcluido());
+            }
+
+            boolean todosConcluidos = !ficha.getItens().isEmpty()
+                && ficha.getItens().stream().allMatch(item -> Boolean.TRUE.equals(item.getConcluido()));
+            ficha.setStatus(todosConcluidos ? "CONCLUIDO" : "PENDENTE");
+            if (!todosConcluidos) {
+                ficha.setDataConclusao(null);
+            } else if (ficha.getDataConclusao() == null) {
+                ficha.setDataConclusao(LocalDateTime.now());
+            }
             FichaTreino atualizada = repositorio.atualizar(ficha);
 
             tx.commit();
@@ -254,9 +264,10 @@ public class TreinoServiceImpl extends TreinoServiceGrpc.TreinoServiceImplBase {
             responseObserver.onCompleted();
 
         } catch (IllegalArgumentException e) {
+            if (tx.isActive()) tx.rollback();
             responseObserver.onError(
                 Status.INVALID_ARGUMENT
-                    .withDescription("ID informado possui formato UUID inválido: " + e.getMessage())
+                    .withDescription("Dados de execução inválidos: " + e.getMessage())
                     .asRuntimeException()
             );
         } catch (Exception e) {

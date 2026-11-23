@@ -168,3 +168,31 @@ Referencias:
 - https://docs.cloud.google.com/sql/docs/postgres/connect-run
 - https://github.com/GoogleCloudPlatform/cloud-sql-jdbc-socket-factory
 - https://grpc.io/docs/guides/retry/
+
+
+## Atualizar frontend e treinos apos as correcoes de interface
+
+Na branch develop atualizada, sem alteracoes locais, execute no Cloud Shell:
+
+```bash
+bash scripts/Update-FrontendTreino.sh
+```
+
+O script publica as duas imagens com a tag do commit e atualiza os servicos
+existentes, preservando variaveis, secrets, contas de servico e configuracoes.
+As imagens anteriores sao exibidas antes da atualizacao para facilitar uma
+restauracao, se necessaria. O Gateway nao precisa ser republicado nesta etapa.
+
+A interface identifica o acesso compartilhado como demonstracao, sem solicitar
+uma senha que nao e conferida. O portal apenas consulta mensalidades; a baixa
+manual e feita no painel com "Registrar pagamento recebido". Isso nao implementa
+contas individuais nem isolamento de acesso entre usuarios.
+
+A ficha permanece PENDENTE enquanto existir exercicio nao concluido. A interface
+exibe "Em andamento" para progresso parcial. Todos os exercicios feitos levam a
+CONCLUIDO e uma data de conclusao; desmarcar um exercicio remove essa data.
+Nao e necessaria alteracao de schema para estas correcoes.
+
+Depois da publicacao, execute Test-Gymflow.ps1 com -BaseUrl apontando para a URL
+publica do frontend e confira no navegador os paineis, o portal, a saida e o
+salvamento parcial/completo de uma ficha com pelo menos dois exercicios.

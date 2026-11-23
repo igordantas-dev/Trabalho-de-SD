@@ -72,20 +72,17 @@
       </div>
 
       <div class="header-actions">
-        <a href="/admin" class="btn btn-outline btn-sm" style="text-decoration:none;">
-          ⚙️ Painel Admin
-        </a>
-
         <!-- Área de identificação do Aluno logado -->
         <div id="header-aluno-logado" style="display:none;" class="aluno-header-profile">
           <div class="aluno-avatar" id="avatar-letra">A</div>
           <div>
+            <small class="text-muted d-block">Sessão de demonstração</small>
             <strong id="header-nome-aluno" style="font-size:0.92rem; display:block; line-height:1.2;">Aluno</strong>
             <span class="student-badge-info text-muted">
               <span id="header-status-aluno" class="badge badge-success">Ativo</span>
             </span>
           </div>
-          <button class="btn btn-outline btn-sm" id="btn-aluno-logout" title="Sair da conta">
+          <button class="btn btn-outline btn-sm" id="btn-aluno-logout" title="Sair da demonstração">
             Sair
           </button>
         </div>
@@ -100,27 +97,21 @@
         <div style="width: 58px; height: 58px; margin: 0 auto 1rem; border-radius: 50%; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
-        <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.35rem;">Acesso do Aluno</h2>
-        <p class="text-muted text-sm">Informe seus dados para acessar suas fichas de treino e mensalidades.</p>
+        <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.35rem;">Portal do Aluno — demonstração</h2>
+        <p class="text-muted text-sm">Selecione um aluno para explorar suas fichas e mensalidades com dados fictícios. Este acesso não verifica a identidade do aluno.</p>
       </div>
 
       <form id="form-login-aluno">
         <div class="form-group mb-3">
-          <label for="login-identificador">Selecione ou Informe sua Conta *</label>
+          <label for="login-aluno-select">Aluno da demonstração *</label>
           <select id="login-aluno-select" class="form-control" required>
             <option value="">Carregando alunos cadastrados...</option>
           </select>
-          <small class="text-muted mt-1 d-block">Identifique-se com seu perfil cadastrado na academia.</small>
-        </div>
-
-        <div class="form-group mb-4">
-          <label for="login-senha-aluno">Senha de Acesso</label>
-          <input type="password" id="login-senha-aluno" class="form-control" value="123456" placeholder="Sua senha">
-          <small class="text-muted mt-1 d-block">Senha padrão de demonstração: <code>123456</code></small>
+          <small class="text-muted mt-1 d-block">A seleção define os dados exibidos nesta demonstração compartilhada.</small>
         </div>
 
         <button type="submit" class="btn btn-primary w-100 py-2" id="btn-entrar-aluno">
-          Entrar no Meu Espaço
+          Entrar na demonstração
         </button>
       </form>
     </div>
@@ -181,6 +172,7 @@
             </button>
           </div>
           <div class="card-body">
+            <p class="text-muted mb-3">Consulte a situação das mensalidades. Os pagamentos recebidos são registrados pela administração da academia.</p>
             <div class="table-responsive">
               <table class="table">
                 <thead>
@@ -191,11 +183,10 @@
                     <th>Status</th>
                     <th>Data Quitação</th>
                     <th>Forma</th>
-                    <th>Ação</th>
                   </tr>
                 </thead>
                 <tbody id="tbody-minhas-mensalidades">
-                  <tr><td colspan="7" class="text-center text-muted py-4">⏳ Carregando mensalidades...</td></tr>
+                  <tr><td colspan="6" class="text-center text-muted py-4">⏳ Carregando mensalidades...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -243,36 +234,6 @@
     </main>
   </div>
 
-  <!-- Modal de Pagamento de Mensalidade pelo Aluno -->
-  <div id="modal-pagamento-aluno" class="modal-backdrop">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3>Pagar Mensalidade</h3>
-        <button class="modal-close" onclick="alunoApp.fecharModal('modal-pagamento-aluno')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-aluno-pagar">
-          <input type="hidden" id="aluno-pagamento-id">
-          <p id="aluno-pagamento-detalhes" class="mb-3 text-muted">Mensalidade: R$ 0,00</p>
-
-          <div class="form-group">
-            <label for="aluno-pagamento-forma">Escolha a Forma de Pagamento *</label>
-            <select id="aluno-pagamento-forma" class="form-control" required>
-              <option value="PIX">PIX (Instantâneo)</option>
-              <option value="CARTAO">Cartão de Crédito</option>
-              <option value="DINHEIRO">Dinheiro</option>
-              <option value="BOLETO">Boleto Bancário</option>
-            </select>
-          </div>
-
-          <div class="form-actions mt-3">
-            <button type="submit" class="btn btn-primary w-100">Confirmar Pagamento</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <script src="js/aluno.js"></script>
+  <script src="js/aluno.js?v=20261123-demonstracao"></script>
 </body>
 </html>

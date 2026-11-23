@@ -583,10 +583,41 @@ select.form-control {
 
 /* Fichas de Treino & Exercícios */
 .exercicio-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)) auto;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  align-items: center;
+  margin-bottom: 1rem;
+  align-items: end;
+}
+
+.exercicio-campo {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.exercicio-campo > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #d1d5db;
+}
+
+@media (max-width: 600px) {
+  .exercicio-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .exercicio-campo:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .exercicio-row .btn-remove-row {
+    justify-self: end;
+    grid-column: 2;
+  }
 }
 
 .exercicio-row input {
@@ -853,3 +884,24 @@ select.form-control {
   color: #ffffff;
 }
 
+
+/* Consulta e cadastro podem ser recolhidos independentemente. */
+.paineis-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+.painel-recolhivel { min-width: 0; }
+.painel-recolhivel > summary { cursor: pointer; list-style: none; gap: 1rem; }
+.painel-recolhivel > summary::-webkit-details-marker { display: none; }
+.painel-recolhivel > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; }
+.painel-recolhivel:not([open]) > summary { border-bottom: 0; }
+.painel-indicador::after { content: '+'; font-size: 1.4rem; }
+.painel-recolhivel[open] > summary .painel-indicador::after { content: '−'; }
+.paineis-layout:has(> .painel-recolhivel:not([open])) > .painel-recolhivel { grid-column: 1 / -1; }
+.treino-filtros { padding-bottom: 0; }
+.treino-filtros > div { flex-wrap: wrap; }
+@media (max-width: 960px) {
+  .paineis-layout { grid-template-columns: minmax(0, 1fr); }
+}
