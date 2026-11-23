@@ -21,7 +21,8 @@ import java.util.Map;
  */
 public class ServidorFinanceiroGrpc {
 
-    public static final int PORTA = 9093;
+    public static final int PORTA = Integer.parseInt(
+            System.getenv().getOrDefault("PORT", "9093"));
 
     public static void main(String[] args) throws IOException, InterruptedException {
         Map<String, String> jpaProps = new HashMap<>();

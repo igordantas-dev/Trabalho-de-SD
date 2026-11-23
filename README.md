@@ -1,5 +1,8 @@
 # Sistema Distribuído de Gestão de Academia — GymFlow Pro
 
+> Entrega final (develop): consulte [DOCKER.md](DOCKER.md) para a arquitetura atual e os comandos. O frontend agora esta em frontend/public, servido separadamente em http://localhost:8081. A API continua em http://localhost:8080. As instrucoes de VMs abaixo documentam a entrega anterior; a migracao gerenciada ainda esta em andamento.
+
+
 Trabalho prático desenvolvido para a disciplina de **Sistemas Distribuídos** (Trabalho 2 — Exposição Web, API Gateway e Microsserviços Distribuídos).
 
 O sistema evolui a arquitetura distribuída anterior para uma plataforma completa com interface gráfica (**Frontend Web SPA**), um **API Gateway centralizador (Spring Boot)** com segurança **JWT**, documentação interativa **Swagger/OpenAPI**, módulo de **geração de treinos assistida por IA**, e comunicação interna de alta performance via **gRPC/Protocol Buffers** integrada a três microsserviços com **persistência real em banco de dados relacional (PostgreSQL via JPA/Hibernate)**.

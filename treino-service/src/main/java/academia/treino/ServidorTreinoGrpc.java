@@ -21,7 +21,8 @@ import java.util.Map;
  */
 public class ServidorTreinoGrpc {
 
-    public static final int PORTA = 9092;
+    public static final int PORTA = Integer.parseInt(
+            System.getenv().getOrDefault("PORT", "9092"));
 
     public static void main(String[] args) throws IOException, InterruptedException {
         // Configuração JPA via variáveis de ambiente
