@@ -82,5 +82,6 @@ Nao execute o banco antigo enquanto o banco do Compose estiver ativo.
 ## Proximas etapas da entrega
 
 Esta configuracao valida a containerizacao local, ainda nao a implantacao
-final. Faltam configurar Cloud SQL, implementar retries e preparar a
-publicacao no Artifact Registry. Nenhuma configuracao GCP e criada aqui.
+final. A conexao com Cloud SQL e a politica de retries estao implementadas;
+consulte GCP.md para variaveis e testes. Ainda faltam validar o banco real,
+adicionar scripts de schema e implantar os servicos na nuvem.

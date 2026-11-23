@@ -24,7 +24,13 @@ public class GrpcClientConfig {
         } else {
             builder.usePlaintext();
         }
-        return builder.build();
+        return builder
+                .defaultServiceConfig(GrpcRetryPolicy.config())
+                .disableServiceConfigLookUp()
+                .enableRetry()
+                .maxRetryAttempts(3)
+                .intercept(new GrpcAttemptLogging())
+                .build();
     }
 
     @Bean(destroyMethod = "shutdown")

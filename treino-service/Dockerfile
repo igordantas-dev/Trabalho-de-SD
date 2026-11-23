@@ -2,7 +2,7 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
 COPY . .
-RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -pl treino-service -am install -DskipTests \
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl treino-service -am install -DskipTests \
     && mvn -B -ntp -pl treino-service org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/lib
 
 FROM eclipse-temurin:21-jre-jammy
