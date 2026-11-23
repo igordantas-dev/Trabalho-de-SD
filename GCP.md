@@ -94,7 +94,51 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Resiliencia.p
 O segundo teste para apenas financeiro-service, confere o erro tratado,
 consulta alunos durante a falha, mostra os logs e restaura o financeiro.
 O bloco finally tenta restaurar o servico mesmo se o teste falhar.
-Esse teste e local; o roteiro de falha no Cloud Run sera preparado separadamente.
+Esse teste controla apenas Docker local. Para o Cloud Run, use o roteiro abaixo.
+
+### Demonstracao no Cloud Run e Cloud Logging
+
+Execute no Cloud Shell, no clone atualizado:
+
+```bash
+python3 scripts/Test-Resiliencia-Gcp.py
+```
+
+O script usa somente consultas HTTPS e os servicos ja implantados. Ele:
+
+1. Confirma que alunos e financeiro estao acessiveis pelo frontend.
+2. Salva o endereco original do financeiro em ~/gymflow-financeiro-restore.json.
+3. Configura temporariamente FINANCEIRO_HOST=127.0.0.1 e FINANCEIRO_PORT=1
+   no Gateway. Isso simula perda de conectividade com uma dependencia,
+   e nao o desligamento do processo do microsservico.
+4. Exige HTTP 503 tratado no financeiro e HTTP 200 na consulta de alunos.
+5. Consulta Cloud Logging na revisao de falha e exige tentativas 1, 2 e 3
+   associadas ao mesmo grpc_call; imprime as linhas e o filtro do Logs Explorer.
+6. Restaura o endereco original em um bloco finally e confirma HTTP 200.
+
+As alteracoes de variaveis criam revisoes do Gateway; a imagem, os segredos,
+os demais endpoints e os dados do banco sao preservados. Cada update pode
+levar alguns minutos. Nao faca outra implantacao do Gateway durante o teste.
+
+Se a sessao for interrompida e a restauracao ficar pendente, reconecte ao
+Cloud Shell, entre na pasta do projeto e execute:
+
+```bash
+python3 scripts/Test-Resiliencia-Gcp.py --restore
+```
+
+O arquivo de emergencia contem apenas host, porta e identificacao do servico,
+sem tokens ou senhas. Ele so e removido apos a restauracao concluir.
+Os testes offline verificam o fluxo, restauracao em caso de falha, preservacao
+do arquivo quando a restauracao falha e agrupamento correto dos logs:
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
+```
+
+Para mostrar a evidencia no console:
+https://console.cloud.google.com/logs/query?project=sd2026
+Cole o filtro impresso pelo script e mostre as tres tentativas.
 
 ## Ainda necessario antes da entrega
 
@@ -109,11 +153,12 @@ O script publica uma imagem com a tag do commit e atualiza somente a imagem e
 GRPC_DEADLINE_SECONDS=20 no servico existente, preservando hosts e segredos.
 Nao habilita instancias minimas permanentemente.
 
-- Validar a conexao real com Cloud SQL.
+- Conexao com Cloud SQL e fluxo HTTPS validados pelo teste de cadastro,
+  consulta, treino, mensalidade e pagamento em 23/11/2026.
 - Adicionar scripts de schema/migracoes versionados e executar no banco.
-- Implantar os cinco servicos Cloud Run com as novas imagens.
+- Cinco servicos implantados: alunos, treinos, financeiro, Gateway e frontend.
 - Configurar variaveis/segredos e conferir no console.
-- Testar persistencia e resiliência pelas URLs HTTPS publicas.
+- Executar a demonstracao de resiliência no Cloud Run e registrar as evidencias.
 - Confirmar com o grupo a VM antiga e comprovar que esta desligada/excluida.
 - Relatorio PDF de ate 5 paginas com arquitetura e URLs reais.
 

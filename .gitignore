@@ -11,3 +11,7 @@ target/
 .classpath
 .project
 .DS_Store
+
+# Cache dos scripts Python
+__pycache__/
+*.py[cod]
