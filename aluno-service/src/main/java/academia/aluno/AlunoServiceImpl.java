@@ -3,6 +3,7 @@ package academia.aluno;
 import academia.aluno.entidade.Aluno;
 import academia.aluno.repositorio.AlunoRepositorio;
 import academia.grpc.*;
+import academia.seguranca.Senhas;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.persistence.EntityManager;
@@ -51,6 +52,47 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
         return root;
     }
 
+    @Override
+    public void autenticarAluno(AutenticarAlunoRequest request, StreamObserver<AlunoResponse> observer) {
+        EntityManager em = createEntityManager();
+        try {
+            var aluno = new AlunoRepositorio(em).buscarPorEmail(request.getEmail().trim().toLowerCase(java.util.Locale.ROOT));
+            String hash = aluno.map(Aluno::getSenhaHash).orElse(HASH_AUSENTE);
+            boolean senhaValida = Senhas.verificar(request.getSenha(), hash == null ? HASH_AUSENTE : hash);
+            if (aluno.isEmpty() || aluno.get().getSenhaHash() == null || !senhaValida) {
+                observer.onError(Status.UNAUTHENTICATED.withDescription("E-mail ou senha incorretos.").asRuntimeException());
+                return;
+            }
+            observer.onNext(toResponse(aluno.get(), "Acesso autorizado")); observer.onCompleted();
+        } catch (Exception e) {
+            System.err.println("[AlunoService] Falha de autenticacao: " + e.getClass().getSimpleName());
+            observer.onError(Status.INTERNAL.withDescription("Nao foi possivel entrar agora. Tente novamente.").asRuntimeException());
+        } finally { closeEntityManager(em); }
+    }
+
+    // Hash ficticio valido para reduzir diferenca de tempo quando o email nao existe.
+    private static final String HASH_AUSENTE = Senhas.gerar(UUID.randomUUID().toString());
+
+    @Override
+    public void definirSenhaAluno(DefinirSenhaAlunoRequest request, StreamObserver<AlunoResponse> observer) {
+        EntityManager em = createEntityManager();
+        var tx = em.getTransaction();
+        try {
+            Senhas.validar(request.getSenha());
+            var aluno = em.find(Aluno.class, UUID.fromString(request.getAlunoId()));
+            if (aluno == null) { observer.onError(Status.NOT_FOUND.withDescription("Aluno nao encontrado.").asRuntimeException()); return; }
+            String hash = Senhas.gerar(request.getSenha());
+            tx.begin(); aluno.setSenhaHash(hash); tx.commit();
+            observer.onNext(toResponse(aluno, "Senha de acesso atualizada.")); observer.onCompleted();
+        } catch (IllegalArgumentException e) {
+            if (tx.isActive()) tx.rollback();
+            observer.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+        } catch (Exception e) {
+            if (tx.isActive()) tx.rollback();
+            observer.onError(Status.INTERNAL.withDescription("Nao foi possivel atualizar a senha.").asRuntimeException());
+        } finally { closeEntityManager(em); }
+    }
+
     // ─── CadastrarAluno ───────────────────────────────────────────────────
 
     @Override
@@ -69,6 +111,11 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
         Double altura = request.getAltura() > 0 ? request.getAltura() : null;
 
         try {
+            Senhas.validar(request.getSenha());
+            if (request.getPeso() != 0 && (!Double.isFinite(request.getPeso()) || request.getPeso() < 1 || request.getPeso() > 500))
+                throw new IllegalArgumentException("Informe o peso em kg, entre 1 e 500.");
+            if (request.getAltura() != 0 && (!Double.isFinite(request.getAltura()) || request.getAltura() < 0.5 || request.getAltura() > 2.5))
+                throw new IllegalArgumentException("Informe a altura em metros, entre 0,50 e 2,50. Exemplo: 1,70, nao 170.");
             // 1. Validação proativa de duplicidade de CPF
             if (repositorio.buscarPorCpf(cpfLimpo).isPresent()) {
                 responseObserver.onError(
@@ -98,6 +145,7 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
                 altura
             );
 
+            aluno.setSenhaHash(Senhas.gerar(request.getSenha()));
             tx.begin();
             repositorio.salvar(aluno);
             tx.commit();
@@ -108,6 +156,9 @@ public class AlunoServiceImpl extends AlunoServiceGrpc.AlunoServiceImplBase {
             responseObserver.onNext(toResponse(aluno, "Aluno cadastrado com sucesso"));
             responseObserver.onCompleted();
 
+        } catch (IllegalArgumentException e) {
+            if (tx.isActive()) tx.rollback();
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
         } catch (Exception e) {
             if (tx.isActive()) tx.rollback();
             Throwable root = getRootCause(e);

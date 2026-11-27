@@ -15,3 +15,8 @@ target/
 # Cache dos scripts Python
 __pycache__/
 *.py[cod]
+
+# Credenciais privadas locais
+.env
+.env.*
+!.env.example

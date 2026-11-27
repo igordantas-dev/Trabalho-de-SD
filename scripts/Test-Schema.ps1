@@ -24,10 +24,13 @@ try {
     }
     if (-not $ready) { throw "PostgreSQL de teste nao ficou pronto." }
 
-    Invoke-SchemaFile "Apply.psql"
-    Write-Host "[OK] Schema criado e validado em banco vazio" -ForegroundColor Green
-
+    # Simula um banco anterior ao login, com um aluno existente antes de V002.
+    Invoke-SchemaFile "migrations/V001__schema_inicial.sql"
     Invoke-SchemaFile "tests/Fixture.sql"
+    Invoke-SchemaFile "Apply.psql"
+    Invoke-SchemaFile "tests/Check-preservation.sql"
+    Write-Host "[OK] Migracao de login preservou os registros anteriores e nao criou senha padrao" -ForegroundColor Green
+
     Invoke-SchemaFile "Apply.psql"
     Invoke-SchemaFile "tests/Check-preservation.sql"
     Write-Host "[OK] Reaplicacao preservou registros e versao unica da baseline" -ForegroundColor Green

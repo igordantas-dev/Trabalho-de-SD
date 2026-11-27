@@ -1,6 +1,7 @@
 package academia.gateway.excecao;
 
 import io.grpc.StatusRuntimeException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -57,7 +58,6 @@ public class GatewayExceptionHandler {
         corpo.put("status", HttpStatus.BAD_REQUEST.value());
         corpo.put("codigo", "REQUISICAO_MALFORMADA");
         corpo.put("mensagem", "Corpo da requisição JSON inválido ou mal formatado. Verifique tipos de dados e campos obrigatórios.");
-        corpo.put("detalhes", ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage());
         corpo.put("timestamp", LocalDateTime.now().toString());
         return ResponseEntity.badRequest().body(corpo);
     }
@@ -95,11 +95,11 @@ public class GatewayExceptionHandler {
             }
             case UNAVAILABLE -> {
                 httpStatus = HttpStatus.SERVICE_UNAVAILABLE;
-                mensagemAmigavel = "O microsserviço interno gRPC está temporariamente indisponível ou fora do ar. Verifique se o serviço está em execução.";
+                mensagemAmigavel = "Este recurso está temporariamente indisponível. Tente novamente em instantes.";
             }
             case DEADLINE_EXCEEDED -> {
                 httpStatus = HttpStatus.GATEWAY_TIMEOUT;
-                mensagemAmigavel = "O tempo limite da requisição foi excedido. O microsserviço interno demorou para responder.";
+                mensagemAmigavel = "A operação demorou mais que o esperado. Tente novamente em instantes.";
             }
             case PERMISSION_DENIED -> {
                 httpStatus = HttpStatus.FORBIDDEN;
@@ -107,12 +107,11 @@ public class GatewayExceptionHandler {
             }
             case UNAUTHENTICATED -> {
                 httpStatus = HttpStatus.UNAUTHORIZED;
-                mensagemAmigavel = "Não autenticado ou token inválido.";
+                mensagemAmigavel = "E-mail ou senha incorretos, ou sessão expirada. Entre novamente.";
             }
             default -> {
                 httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
-                mensagemAmigavel = (descricaoOriginal != null && !descricaoOriginal.isBlank())
-                        ? descricaoOriginal : "Ocorreu um erro interno ao processar a requisição no microsserviço.";
+                mensagemAmigavel = "Não foi possível concluir a operação. Tente novamente em instantes.";
             }
         }
 
@@ -120,9 +119,6 @@ public class GatewayExceptionHandler {
         corpo.put("status", httpStatus.value());
         corpo.put("codigo", ex.getStatus().getCode().name());
         corpo.put("mensagem", mensagemAmigavel);
-        if (descricaoOriginal != null && !descricaoOriginal.equals(mensagemAmigavel)) {
-            corpo.put("detalhe", descricaoOriginal);
-        }
         corpo.put("timestamp", LocalDateTime.now().toString());
 
         return ResponseEntity.status(httpStatus).body(corpo);
@@ -154,13 +150,19 @@ public class GatewayExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(corpo);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAcesso(AccessDeniedException ex) {
+        return ResponseEntity.status(403).body(Map.of("status",403,"codigo","ACESSO_NEGADO",
+            "mensagem","Você não tem permissão para acessar estes dados ou realizar esta operação."));
+    }
+
     /** Fallback para qualquer exceção não mapeada. */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenerico(Exception ex) {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
         corpo.put("codigo", "ERRO_INTERNO_GATEWAY");
-        corpo.put("mensagem", "Erro interno no API Gateway: " + (ex.getMessage() != null ? ex.getMessage() : "Erro inesperado."));
+        corpo.put("mensagem", "Não foi possível concluir a operação. Tente novamente em instantes.");
         corpo.put("timestamp", LocalDateTime.now().toString());
         return ResponseEntity.internalServerError().body(corpo);
     }

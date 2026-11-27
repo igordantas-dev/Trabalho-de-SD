@@ -1,0 +1,40 @@
+-- Manutencao manual e destrutiva, fora das migracoes e da inicializacao.
+-- Executar somente por: python3 scripts/CloudSql-Schema.py reset-data
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+SELECT pg_advisory_xact_lock(2026, 1);
+SELECT set_config('gymflow.reset_instance', :'cloud_sql_instance', true);
+
+DO $guard$
+BEGIN
+    IF current_setting('gymflow.reset_instance') <> 'sd2026:us-central1:gymflow-db'
+       OR current_database() <> 'academia'
+       OR current_user <> 'gymflow_app' THEN
+        RAISE EXCEPTION 'Limpeza recusada: destino ou usuario diferente do Cloud SQL previsto';
+    END IF;
+END;
+$guard$;
+
+LOCK TABLE public.itens_treino, public.fichas_treino,
+    public.mensalidades, public.alunos IN ACCESS EXCLUSIVE MODE;
+
+\echo CONTAGENS_ANTES_DA_LIMPEZA
+SELECT 'alunos' AS tabela, count(*) AS registros FROM public.alunos
+UNION ALL SELECT 'fichas_treino', count(*) FROM public.fichas_treino
+UNION ALL SELECT 'itens_treino', count(*) FROM public.itens_treino
+UNION ALL SELECT 'mensalidades', count(*) FROM public.mensalidades;
+
+-- Sem CASCADE: uma dependencia inesperada impede a limpeza e reverte a transacao.
+-- Preserva tabelas, constraints, usuarios, credenciais e schema_migrations.
+TRUNCATE TABLE public.itens_treino, public.fichas_treino,
+    public.mensalidades, public.alunos RESTRICT;
+
+COMMIT;
+\echo CONTAGENS_APOS_A_LIMPEZA
+SELECT 'alunos' AS tabela, count(*) AS registros FROM public.alunos
+UNION ALL SELECT 'fichas_treino', count(*) FROM public.fichas_treino
+UNION ALL SELECT 'itens_treino', count(*) FROM public.itens_treino
+UNION ALL SELECT 'mensalidades', count(*) FROM public.mensalidades;
+\echo DADOS_DO_GCP_ZERADOS

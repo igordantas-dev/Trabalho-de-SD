@@ -63,6 +63,9 @@ services:
       - api-gateway
 
   api-gateway:
+    env_file:
+      - path: .env.auth
+        format: raw
     build:
       context: .
       dockerfile: api-gateway/Dockerfile

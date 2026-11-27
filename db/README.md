@@ -6,14 +6,16 @@ Nao ha dados de exemplo nas migracoes de producao.
 | Arquivo | Finalidade |
 |---|---|
 | migrations/V001__schema_inicial.sql | Cria as quatro tabelas ausentes, sem substituir as existentes |
+| migrations/V002__senha_aluno.sql | Acrescenta senha_hash nullable; cadastros antigos continuam preservados |
 | Validate.sql | Confere colunas, tipos, tamanhos, nulabilidade, PKs, unicidade e FK |
 | Validate.psql | Executa somente validacao/contagens em transacao read-only |
-| Apply.psql | Aplica V001, valida e registra a versao 001 atomicamente |
+| Apply.psql | Aplica V001 e V002, valida e registra as duas versoes atomicamente |
 | tests/ | Fixtures usadas somente no banco descartavel dos testes locais |
 
 ## Modelo
 
-- alunos: cadastro, CPF e email unicos.
+- alunos: cadastro, CPF e email unicos; senha_hash protegido com PBKDF2.
+  Hash nulo identifica cadastro antigo sem senha definida; nao ha senha padrao.
 - fichas_treino: ficha de treino; aluno_id e uma referencia logica em varchar.
 - itens_treino: exercicios com FK para fichas_treino.
 - mensalidades: cobrancas; aluno_id e uma referencia logica em varchar.
@@ -38,19 +40,20 @@ O conteiner e seu volume temporario sao removidos ao final.
 
 ## Cloud SQL existente
 
-Depois de enviar os arquivos ao GitHub e atualizar o Cloud Shell:
+Depois de enviar os arquivos ao GitHub e atualizar o Cloud Shell, aplique
+V002 **antes** de publicar o aluno-service atualizado. O banco atual ainda
+nao possui senha_hash; executar apenas validate nessa situacao deve falhar.
 
 ```bash
-bash scripts/CloudSql-Schema.sh validate
+python3 scripts/CloudSql-Schema.py apply
+python3 scripts/CloudSql-Schema.py validate
 ```
 
-Confira VALIDACAO_DO_BANCO_CONCLUIDA e as contagens. Depois registre a baseline:
+Confira BASELINE_DO_BANCO_CONCLUIDA, versoes 001 e 002, e depois
+VALIDACAO_DO_BANCO_CONCLUIDA. A migracao apenas acrescenta a coluna e o registro
+de versao; nao redefine senhas nem remove alunos, fichas ou mensalidades.
+Os alunos anteriores recebem senha pelo botao Definir senha na gestao.
 
-```bash
-bash scripts/CloudSql-Schema.sh apply
-```
-
-Confira BASELINE_DO_BANCO_CONCLUIDA e a versao 001.
 O script busca a senha do Secret Manager sem exibi-la e inicia seu proprio
 cloud-sql-proxy em uma porta dinamica de 127.0.0.1. O cliente psql recebe a
 senha por PGPASSWORD e usa -w, que proibe prompts de senha.
@@ -61,17 +64,18 @@ Nao e necessario instalar pacotes Python adicionais.
 
 ## Garantias e limites
 
-- Nao ha DROP TABLE, TRUNCATE, DELETE ou UPDATE de registros da aplicacao.
+- As migracoes nao executam DROP TABLE, TRUNCATE, DELETE ou UPDATE de registros da aplicacao.
+  A limpeza manual descrita abaixo e separada das migracoes.
 - CREATE TABLE IF NOT EXISTS nao corrige tabelas divergentes; Validate.sql
   detecta as incompatibilidades cobertas e interrompe a transacao.
-- O registro 001 so e criado apos a validacao passar.
+- Os registros 001 e 002 so sao criados apos a validacao passar.
 - PKs, unicidade e a FK sao comparadas por colunas, sem exigir nomes de
   constraints gerados pelo Hibernate.
 - Reaplicar nao duplica dados nem o registro da versao.
 - O lock e os timeouts sao locais a transacao.
 - Este e um fluxo SQL manual, nao uma instalacao de Flyway/Liquibase.
-- Depois de publicada, mantenha V001 imutavel; alteracoes futuras devem ser
-  novas migracoes V002, V003 etc., com suas respectivas validacoes e registro.
+- Depois de publicadas, mantenha V001 e V002 imutaveis; alteracoes futuras devem ser
+  novas migracoes V003, V004 etc., com suas respectivas validacoes e registro.
 - Depois da baseline validada, configure DB_SCHEMA_MODE=validate nos tres
   microsservicos para validar o mapeamento sem Hibernate alterar o schema.
 - Nao execute os arquivos de tests/ em bancos da aplicacao.
@@ -86,3 +90,26 @@ psql -X -v ON_ERROR_STOP=1 -d academia -f db/Apply.psql
 ```
 
 Use variaveis/credenciais externas ao repositorio para host, usuario e senha.
+
+## Zerar somente os dados do GCP
+
+Use apenas quando quiser apagar todos os alunos, fichas, exercicios e
+mensalidades da nuvem. Essa manutencao nao altera o banco local, as tabelas,
+as migracoes registradas, a instancia Cloud SQL nem os secrets da gestao.
+As contas e senhas dos alunos sao apagadas junto com seus cadastros.
+
+No Cloud Shell, com a develop atualizada:
+
+```bash
+python3 scripts/CloudSql-Schema.py reset-data
+```
+
+O script conecta exclusivamente a sd2026:us-central1:gymflow-db, banco academia,
+usuario gymflow_app, usando um proxy temporario proprio. Exibe contagens antes
+e depois da limpeza e DADOS_DO_GCP_ZERADOS ao concluir. A operacao ocorre em
+transacao, sem CASCADE; uma dependencia inesperada impede a limpeza.
+Nao faz parte de apply, validate, build ou deploy. O arquivo SQL de manutencao
+nao deve ser incluido nas migracoes nem executado no banco local.
+
+Depois, cadastre manualmente os alunos desejados para a apresentacao.
+Test-Gymflow.ps1 volta a criar registros de teste se for executado novamente.

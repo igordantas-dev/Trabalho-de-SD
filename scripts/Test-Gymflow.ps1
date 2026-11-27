@@ -1,4 +1,4 @@
-param([string]$BaseUrl = "http://localhost:8081")
+param([string]$BaseUrl = "http://localhost:8081", [PSCredential]$CredencialGestao)
 
 $ErrorActionPreference = "Stop"
 $BaseUrl = $BaseUrl.TrimEnd('/')
@@ -22,10 +22,13 @@ try {
     Write-Host "[OK] Frontend respondeu" -ForegroundColor Green
 
     $step = "token"
-    $auth = Invoke-RestMethod "$BaseUrl/api/gerarToken" -TimeoutSec 30
+    if (-not $CredencialGestao) { $CredencialGestao = Get-Credential -Message "Informe o e-mail e a senha da gestao" }
+    $loginBody = @{ username = $CredencialGestao.UserName; senha = $CredencialGestao.GetNetworkCredential().Password; perfil = "ADMIN" } | ConvertTo-Json
+    $auth = Invoke-RestMethod "$BaseUrl/api/autenticar" -Method POST -Body $loginBody -ContentType "application/json; charset=utf-8" -TimeoutSec 30
+    $loginBody = $null
     if (-not $auth.token) { throw "Token ausente." }
     $headers = @{ Authorization = "Bearer $($auth.token)" }
-    Write-Host "[OK] Token obtido pelo frontend e Gateway" -ForegroundColor Green
+    Write-Host "[OK] Login da gestao validado pelo frontend e Gateway" -ForegroundColor Green
 
     $step = "aluno"
     $suffix = [guid]::NewGuid().ToString("N").Substring(0, 8)
@@ -33,7 +36,7 @@ try {
     $cpf = -join (1..11 | ForEach-Object { Get-Random -Minimum 0 -Maximum 10 })
     $aluno = Invoke-GymflowApi POST "cadastrarAluno" @{
         nome = "Teste automatico $suffix"; cpf = $cpf; email = $email
-        telefone = "62999990000"; peso = 70.0; altura = 1.75
+        telefone = "62999990000"; peso = 70.0; altura = 1.75; senha = [guid]::NewGuid().ToString("N")
     }
     if (-not $aluno.id) { throw "Cadastro sem ID." }
     $consulta = Invoke-GymflowApi GET "buscarAluno/$($aluno.id)"

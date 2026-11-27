@@ -16,16 +16,16 @@ Não é necessário instalar programas nem manter um computador ou Cloud Shell a
 | Portal do Aluno | [Abrir o portal](https://gymflow-frontend-qywzrohxza-uc.a.run.app/aluno.html) |
 | Documentação da API | [Swagger UI](https://gymflow-gateway-qywzrohxza-uc.a.run.app/swagger-ui.html) |
 
-Clique em **Entrar na demonstração**. No portal, selecione o aluno cujos dados deseja consultar. Os dados cadastrados são compartilhados entre os usuários da versão em nuvem e persistidos no Cloud SQL.
+O painel exige o e-mail e a senha da gestão configurados pelo responsável pela implantação. No Portal do Aluno, cada pessoa entra com seu próprio e-mail e a senha inicial definida pela gestão. O aluno acessa somente seu cadastro, suas fichas e suas mensalidades.
 
-> **Acesso didático:** a demonstração não utiliza contas individuais nem verifica a identidade do aluno. Use dados fictícios. O Gateway valida assinatura e validade de tokens JWT, mas a emissão pública desses tokens não representa um sistema de autenticação para produção.
+Para alunos já cadastrados, a gestão utiliza **Definir senha** na lista de alunos. Não existe senha padrão nem acesso rápido sem autenticação. As senhas são armazenadas como hashes PBKDF2 com salt individual; nunca em texto puro. Consulte [Acesso, permissões e implantação do login](AUTH.md).
 
 ## O que a aplicação faz
 
 | Área | Funcionalidades |
 |---|---|
 | Alunos | Cadastro, listagem, consulta e alteração do status da matrícula: `ATIVO`, `INADIMPLENTE` ou `INATIVO`. |
-| Treinos | Criação de várias fichas por aluno, consulta de exercícios e registro das cargas usadas e dos exercícios feitos. |
+| Treinos na gestão | Criação de várias fichas por aluno e consulta da prescrição e das cargas informadas pelo aluno. A execução é registrada somente no portal. |
 | Gerador de treinos | Geração automática por regras e gravação da ficha no serviço de treinos. |
 | Mensalidades | Criação de mensalidades, consulta por aluno e registro manual de pagamentos recebidos. |
 | Portal do Aluno | Consulta de cadastro, fichas e mensalidades; registro de execução de treinos quando a matrícula permite. |
@@ -77,7 +77,7 @@ Projeto: `sd2026`. Região dos serviços: `us-central1`.
 | Cloud SQL | PostgreSQL 16, instância `gymflow-db`, banco `academia`. |
 | Artifact Registry | Repositório Docker `us-central1-docker.pkg.dev/sd2026/gymflow`. |
 | Cloud Build | Construção e publicação das imagens a partir do código-fonte. |
-| Secret Manager | Segredos do banco e da assinatura JWT, referenciados pelos serviços. |
+| Secret Manager | Senha do banco, chave de assinatura JWT e hash da senha da gestão. |
 | Cloud Logging | Logs de execução e das tentativas de chamadas gRPC. |
 
 | Serviço no Cloud Run | URL pública HTTPS |
@@ -88,7 +88,7 @@ Projeto: `sd2026`. Região dos serviços: `us-central1`.
 | `gymflow-treino` | https://gymflow-treino-qywzrohxza-uc.a.run.app |
 | `gymflow-financeiro` | https://gymflow-financeiro-qywzrohxza-uc.a.run.app |
 
-As URLs dos microsserviços recebem chamadas gRPC; não são páginas web. A comunicação usa TLS até o Cloud Run e HTTP/2 sem TLS dentro dos contêineres gRPC. Os endpoints da plataforma permitem invocação pública; não há autenticação IAM entre os serviços nesta demonstração.
+As URLs dos microsserviços recebem chamadas gRPC; não são páginas web. A comunicação usa TLS até o Cloud Run e HTTP/2 sem TLS dentro dos contêineres gRPC. O frontend e o Gateway permitem invocação pública, com autenticação e permissões na API. Os três microsserviços exigem a identidade IAM do Gateway, impedindo contornar essas permissões por chamadas diretas. Essa configuração é aplicada pelo procedimento de [AUTH.md](AUTH.md).
 
 ## Executar localmente com Docker
 
@@ -97,6 +97,7 @@ As URLs dos microsserviços recebem chamadas gRPC; não são páginas web. A com
 - Git.
 - Docker Desktop iniciado, com contêineres Linux e Docker Compose.
 - PowerShell para os comandos e scripts abaixo.
+- Python 3 para configurar as credenciais locais; Docker Compose 2.30 ou superior para `env_file.format: raw`.
 - Internet para o primeiro download de imagens e dependências.
 
 O build em Docker já fornece Java 21 e Maven. Não é necessário instalá-los no computador para executar esse fluxo. Prefira um caminho sem acentos, como `C:\workspace`, para evitar problemas com ferramentas de geração de código no Windows.
@@ -109,11 +110,14 @@ cd C:\workspace
 git clone --branch develop https://github.com/igordantas-dev/Trabalho-de-SD.git
 cd Trabalho-de-SD
 
+python .\scripts\Setup-LocalAuth.py
 docker volume create gymflow-postgres-data
 docker compose --parallel 1 build
 docker compose up -d
 docker compose ps
 ```
+
+O configurador solicita e-mail e senha da gestão e cria `.env.auth`, ignorado pelo Git e pelo contexto de build. Não compartilhe esse arquivo. As credenciais locais são independentes das credenciais da nuvem.
 
 O build é sequencial para reduzir o uso de memória. São iniciados seis contêineres: frontend, Gateway, três microsserviços e PostgreSQL. Aguarde a inicialização dos serviços antes de testar.
 
@@ -164,7 +168,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Gymflow.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Gymflow.ps1 -BaseUrl "https://gymflow-frontend-qywzrohxza-uc.a.run.app"
 ```
 
-O teste cria um aluno fictício, cria e consulta uma ficha, gera uma mensalidade e registra/consulta o pagamento. Cada execução deixa novos registros no banco do ambiente escolhido. Nenhum dinheiro é transferido.
+O teste solicita as credenciais da gestão. Cria um aluno fictício com senha aleatória, cria e consulta uma ficha, gera uma mensalidade e registra/consulta o pagamento. Cada execução deixa novos registros no banco do ambiente escolhido. Nenhum dinheiro é transferido.
 
 ### Resiliência
 
@@ -197,11 +201,11 @@ python3 scripts/Test-Resiliencia-Gcp.py --restore
 
 ## Banco de dados e migrações
 
-A baseline SQL versionada fica em [`db/migrations/V001__schema_inicial.sql`](db/migrations/V001__schema_inicial.sql). O fluxo aplica o schema, valida sua estrutura e registra a versão em `schema_migrations`, sem inserir dados simulados no banco da aplicação.
+As migrações versionadas ficam em [`db/migrations/`](db/migrations/): V001 cria a estrutura inicial e V002 acrescenta o hash da senha do aluno, preservando os dados existentes. O fluxo aplica o schema, valida sua estrutura e registra a versão em `schema_migrations`, sem inserir dados simulados no banco da aplicação.
 
 | Arquivo | Finalidade |
 |---|---|
-| [`db/Apply.psql`](db/Apply.psql) | Aplicar e registrar a baseline em uma transação. |
+| [`db/Apply.psql`](db/Apply.psql) | Aplicar e registrar V001 e V002 em uma transação. |
 | [`db/Validate.psql`](db/Validate.psql) | Conferir estrutura e contagens em uma transação de leitura. |
 | [`scripts/Test-Schema.ps1`](scripts/Test-Schema.ps1) | Testar criação, reaplicação, preservação de dados e rejeição de divergências em banco descartável. |
 | [`scripts/CloudSql-Schema.py`](scripts/CloudSql-Schema.py) | Executar validação ou aplicação no Cloud SQL usando Secret Manager e um proxy temporário. |
@@ -218,37 +222,28 @@ Os microsserviços publicados usam `DB_SCHEMA_MODE=validate`; no Compose local, 
 
 Este fluxo atualiza serviços **já criados e configurados**. Requer acesso ao projeto, às imagens e ao Cloud Build. Envie primeiro os commits da `develop` ao GitHub.
 
-No **Cloud Shell**, atualize o código e publique as imagens de frontend e Gateway:
+A atualização que introduz login exige migrar o banco, configurar a conta da gestão e proteger os microsserviços com IAM. Siga a sequência completa de [AUTH.md](AUTH.md); não atualize somente o frontend.
+
+O arquivo [`cloudbuild/frontend-gateway.json`](cloudbuild/frontend-gateway.json) constrói **aluno-service, api-gateway e frontend**, com a tag do commit. Aguarde `STATUS: SUCCESS` antes de implantar. Os serviços de treino e financeiro mantêm suas imagens atuais nesta atualização.
+
+### Escala para economia e apresentação
+
+No Cloud Shell, os comandos abaixo consultam ou ajustam os cinco serviços:
 
 ```bash
-cd ~/Trabalho-de-SD
-git switch develop
-git pull --ff-only origin develop
-TAG="$(git rev-parse --short HEAD)"
+# Somente consultar as configurações efetivas
+python3 scripts/Scaling-Gcp.py status
 
-gcloud builds submit . \
-  --project=sd2026 \
-  --region=us-central1 \
-  --config=cloudbuild/frontend-gateway.json \
-  --ignore-file=.dockerignore \
-  --substitutions="_TAG=$TAG"
+# Antes da apresentação e durante o período de correção
+python3 scripts/Scaling-Gcp.py economia
+
+# No dia da apresentação, com antecedência para inicializar os serviços
+python3 scripts/Scaling-Gcp.py apresentacao
 ```
 
-Aguarde **STATUS: SUCCESS** antes de executar os comandos de atualização:
+O modo economia usa mínimo **0** e máximo **2**; apresentação usa mínimo **2** e máximo **2**, por serviço. O script também ajusta os limites de revisão para evitar que um máximo antigo de 1 impeça o mínimo de 2. Após apresentar, volte ao modo economia. Instâncias mínimas geram cobrança mesmo sem uso; mínimo zero permite cold start e não interrompe a cobrança do Cloud SQL.
 
-```bash
-gcloud run services update gymflow-gateway \
-  --project=sd2026 --region=us-central1 \
-  --image="us-central1-docker.pkg.dev/sd2026/gymflow/api-gateway:$TAG"
-
-gcloud run services update gymflow-frontend \
-  --project=sd2026 --region=us-central1 \
-  --image="us-central1-docker.pkg.dev/sd2026/gymflow/frontend:$TAG"
-```
-
-Esses comandos alteram as imagens, preservando variáveis, referências a secrets e identidades existentes. A configuração [`cloudbuild/frontend-gateway.json`](cloudbuild/frontend-gateway.json) constrói somente esses dois componentes; alterações em outros microsserviços exigem publicar e atualizar suas respectivas imagens.
-
-A tag identifica o commit usado no build, não o estado atual de todas as revisões. O teste de resiliência também cria revisões ao alterar e restaurar o destino financeiro. Para verificar as revisões e imagens efetivas, consulte o Cloud Run. Informações complementares: [GCP.md](GCP.md).
+Informações complementares: [GCP.md](GCP.md).
 
 ## Integrantes
 

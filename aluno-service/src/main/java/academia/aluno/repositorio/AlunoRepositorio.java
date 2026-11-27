@@ -66,15 +66,9 @@ public class AlunoRepositorio {
      */
     public Optional<Aluno> buscarPorEmail(String email) {
         if (email == null || email.isBlank()) return Optional.empty();
-        try {
-            TypedQuery<Aluno> query = em.createQuery(
-                "SELECT a FROM Aluno a WHERE LOWER(a.email) = LOWER(:email)", Aluno.class);
-            query.setParameter("email", email.trim());
-            List<Aluno> lista = query.getResultList();
-            return lista.isEmpty() ? Optional.empty() : Optional.of(lista.get(0));
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        var lista = em.createQuery("SELECT a FROM Aluno a WHERE LOWER(a.email) = LOWER(:email)", Aluno.class)
+            .setParameter("email", email.trim()).getResultList();
+        return lista.isEmpty() ? Optional.empty() : Optional.of(lista.get(0));
     }
 
     /**

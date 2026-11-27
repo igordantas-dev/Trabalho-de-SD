@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/style.css?v=20261123-portal">
+  <link rel="stylesheet" href="css/style.css?v=20261127-login">
   <style>
     /* Estilos específicos da Área do Aluno */
     .aluno-login-box {
@@ -76,13 +76,13 @@
         <div id="header-aluno-logado" style="display:none;" class="aluno-header-profile">
           <div class="aluno-avatar" id="avatar-letra">A</div>
           <div>
-            <small class="text-muted d-block">Sessão de demonstração</small>
+            <small class="text-muted d-block">Portal do Aluno</small>
             <strong id="header-nome-aluno" style="font-size:0.92rem; display:block; line-height:1.2;">Aluno</strong>
             <span class="student-badge-info text-muted">
               <span id="header-status-aluno" class="badge badge-success">Ativo</span>
             </span>
           </div>
-          <button class="btn btn-outline btn-sm" id="btn-aluno-logout" title="Sair da demonstração">
+          <button class="btn btn-outline btn-sm" id="btn-aluno-logout" title="Sair do portal">
             Sair
           </button>
         </div>
@@ -97,22 +97,14 @@
         <div style="width: 58px; height: 58px; margin: 0 auto 1rem; border-radius: 50%; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
-        <h2 style="font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 0.35rem;">Portal do Aluno — demonstração</h2>
-        <p class="text-muted text-sm">Selecione um aluno para explorar suas fichas e mensalidades com dados fictícios. Este acesso não verifica a identidade do aluno.</p>
+        <h2 style="font-size:1.5rem">Entrar no Portal do Aluno</h2>
+        <p class="text-muted text-sm">Acesse com o e-mail cadastrado e a senha fornecida pela gestão.</p>
       </div>
-
+      <div id="alerta-login-aluno" class="alert alert-danger d-none" role="alert"></div>
       <form id="form-login-aluno">
-        <div class="form-group mb-3">
-          <label for="login-aluno-select">Aluno da demonstração *</label>
-          <select id="login-aluno-select" class="form-control" required>
-            <option value="">Carregando alunos cadastrados...</option>
-          </select>
-          <small class="text-muted mt-1 d-block">A seleção define os dados exibidos nesta demonstração compartilhada.</small>
-        </div>
-
-        <button type="submit" class="btn btn-primary w-100 py-2" id="btn-entrar-aluno">
-          Entrar na demonstração
-        </button>
+        <div class="form-group"><label for="login-email-aluno">E-mail</label><input id="login-email-aluno" type="email" class="form-control" autocomplete="username" maxlength="255" required></div>
+        <div class="form-group"><label for="login-senha-aluno">Senha</label><input id="login-senha-aluno" type="password" class="form-control" autocomplete="current-password" maxlength="128" required></div>
+        <button type="submit" class="btn btn-primary w-100" id="btn-entrar-aluno">Entrar</button>
       </form>
     </div>
   </div>
@@ -234,6 +226,8 @@
     </main>
   </div>
 
-  <script src="js/aluno.js?v=20261123-portal"></script>
+  <script src="js/validacao.js?v=20261127-ptbr"></script>
+  <script src="js/http.js?v=20261127-login"></script>
+  <script src="js/aluno.js?v=20261127-login"></script>
 </body>
 </html>

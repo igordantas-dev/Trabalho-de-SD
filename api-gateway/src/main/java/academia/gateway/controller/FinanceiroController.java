@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import academia.gateway.seguranca.AcessoAluno;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +81,7 @@ public class FinanceiroController {
         var protoReq = BuscarMensalidadeRequest.newBuilder().setId(id).build();
         var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarMensalidade(protoReq);
+        AcessoAluno.verificar(protoResp.getAlunoId());
         return ResponseEntity.ok(MensalidadeResponseDto.fromProto(protoResp));
     }
 
@@ -94,6 +96,7 @@ public class FinanceiroController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<List<MensalidadeResponseDto>> listarMensalidadesPorAluno(@PathVariable("alunoId") String alunoId) {
+        AcessoAluno.verificar(alunoId);
         var protoReq = ListarMensalidadesPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
         var stubComPrazo = financeiroStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarMensalidadesPorAluno(protoReq);

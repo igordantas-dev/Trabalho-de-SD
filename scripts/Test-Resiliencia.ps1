@@ -1,4 +1,4 @@
-param([string]$BaseUrl = "http://localhost:8081")
+param([string]$BaseUrl = "http://localhost:8081", [PSCredential]$CredencialGestao)
 $ErrorActionPreference = "Stop"
 $BaseUrl = $BaseUrl.TrimEnd('/')
 $stopped = $false
@@ -15,7 +15,10 @@ function Get-ApiStatus([string]$Route) {
 }
 
 try {
-    $auth = Invoke-RestMethod "$BaseUrl/api/gerarToken" -TimeoutSec 15
+    if (-not $CredencialGestao) { $CredencialGestao = Get-Credential -Message "Informe o e-mail e a senha da gestao" }
+    $loginBody = @{ username = $CredencialGestao.UserName; senha = $CredencialGestao.GetNetworkCredential().Password; perfil = "ADMIN" } | ConvertTo-Json
+    $auth = Invoke-RestMethod "$BaseUrl/api/autenticar" -Method POST -Body $loginBody -ContentType "application/json; charset=utf-8" -TimeoutSec 30
+    $loginBody = $null
     $headers = @{ Authorization = "Bearer $($auth.token)" }
     $alunos = @(Invoke-RestMethod "$BaseUrl/api/listarAlunos" -Headers $headers -TimeoutSec 15)
     if ($alunos.Count -eq 0 -or -not $alunos[0].id) {

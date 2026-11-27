@@ -910,3 +910,5 @@ select.form-control {
 .mensalidades-portal th, .mensalidades-portal td { vertical-align: middle; }
 .mensalidades-portal th:not(:first-child), .mensalidades-portal td:not(:first-child) { white-space: nowrap; }
 .mensalidades-portal td:first-child { min-width: 200px; overflow-wrap: anywhere; }
+
+.exercicio-item-card.ficha-consulta { grid-template-columns: 2fr 1fr 1fr 1fr; }

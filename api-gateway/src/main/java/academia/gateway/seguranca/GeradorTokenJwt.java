@@ -17,13 +17,7 @@ import java.util.Date;
  */
 public class GeradorTokenJwt {
 
-    public static final String SEGREDO_PADRAO = "segredo-didatico-com-tamanho-suficiente-para-hs256";
-    public static final long DURACAO_PADRAO_MINUTOS = 30;
-
-    /**
-     * Gera um token JWT assinado com o sujeito, segredo e tempo de expiração especificados.
-     */
-    public static String gerarToken(String sujeito, String segredo, long duracaoMinutos) {
+    public static String gerarToken(String sujeito, String perfil, String alunoId, String segredo, long duracaoMinutos) {
         try {
             MACSigner signer = new MACSigner(segredo.getBytes(StandardCharsets.UTF_8));
             Date agora = new Date();
@@ -33,7 +27,9 @@ public class GeradorTokenJwt {
                     .subject(sujeito)
                     .issueTime(agora)
                     .expirationTime(expiracao)
-                    .claim("perfil", "ADMIN")
+                    .claim("perfil", perfil)
+                    .claim("aluno_id", alunoId)
+                    .claim("auth_version", "2")
                     .build();
 
             SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
@@ -45,12 +41,4 @@ public class GeradorTokenJwt {
         }
     }
 
-    /**
-     * Método main para execução via terminal, conforme especificado:
-     * java -Dloader.main=academia.gateway.seguranca.GeradorTokenJwt ...
-     */
-    public static void main(String[] args) {
-        String token = gerarToken("aluno", SEGREDO_PADRAO, DURACAO_PADRAO_MINUTOS);
-        System.out.println(token);
-    }
 }

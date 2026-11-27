@@ -15,14 +15,16 @@ class AlunoApp {
 
   async init() {
     this.setupEventListeners();
-
-    // Carrega alunos para o select de identificação
-    await this.carregarAlunosParaSelect();
-
-    if (this.token && this.alunoId) {
-      await this.carregarDadosDoAluno();
-    } else {
-      this.mostrarTelaLogin();
+    this.mostrarTelaLogin();
+    if (this.token) {
+      try {
+        const resp = await this.apiRequest('/api/sessao');
+        if (!resp.ok) return;
+        const sessao = await resp.json();
+        if (sessao.perfil !== 'ALUNO' || !sessao.alunoId) { this.logout(false); return; }
+        this.alunoId = sessao.alunoId;
+        await this.carregarDadosDoAluno();
+      } catch (error) { this.mostrarToast(error.message, 'danger'); }
     }
   }
 
@@ -49,14 +51,14 @@ class AlunoApp {
     }
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await GymHttp.request(endpoint, {
         ...options,
         headers
       });
 
       if (response.status === 401) {
         this.logout(false);
-        this.mostrarToast('Sessão de demonstração expirada. Entre novamente.', 'warning');
+        this.mostrarToast('Sua sessão expirou. Entre novamente.', 'warning');
       }
 
       return response;
@@ -68,72 +70,34 @@ class AlunoApp {
 
   // ─── Autenticação do Aluno ───────────────────────────────────────────────
 
-  async carregarAlunosParaSelect() {
-    const select = document.getElementById('login-aluno-select');
-    if (!select) return;
-
-    try {
-      // Usamos chamada com token de busca inicial
-      const tokenDemo = await (await fetch('/api/gerarToken')).json();
-      const resp = await fetch('/api/listarAlunos', {
-        headers: {
-          'Authorization': `Bearer ${tokenDemo.token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (resp.ok) {
-        this.alunosDisponiveis = await resp.json();
-        if (this.alunosDisponiveis.length === 0) {
-          select.innerHTML = '<option value="">Nenhum aluno cadastrado no sistema</option>';
-        } else {
-          select.innerHTML = '<option value="">-- Selecione seu nome --</option>' +
-            this.alunosDisponiveis.map(a => `<option value="${a.id}">${a.nome} (${a.cpf})</option>`).join('');
-          
-          if (this.alunoId) {
-            select.value = this.alunoId;
-          }
-        }
-      }
-    } catch (e) {
-      select.innerHTML = '<option value="">Erro ao carregar lista de alunos</option>';
-    }
-  }
-
-  async login(alunoId) {
+  async login(email, senha) {
     const botao = document.getElementById('btn-entrar-aluno');
+    const alerta = document.getElementById('alerta-login-aluno');
     if (botao.disabled) return;
-    botao.disabled = true;
+    botao.disabled = true; alerta.classList.add('d-none');
     try {
-      // Autentica via JWT
-      const resp = await fetch('/api/gerarToken');
-
-      if (!resp.ok) {
-        this.mostrarToast('Não foi possível iniciar a demonstração.', 'danger');
-        return;
-      }
-
+      const resp = await GymHttp.request('/api/autenticar', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username:email.trim(), senha, perfil:'ALUNO'})
+      });
       const data = await resp.json();
-      if (!data.token) throw new Error('Não foi possível iniciar a demonstração.');
-      this.token = data.token;
-      this.alunoId = alunoId;
-
+      if (!resp.ok) { alerta.textContent = data.mensagem; alerta.classList.remove('d-none'); return; }
+      if (data.perfil !== 'ALUNO' || !data.alunoId || !data.token) throw new Error('Esta conta não pode acessar o Portal do Aluno.');
+      this.token = data.token; this.alunoId = data.alunoId;
       localStorage.setItem('gymdist_aluno_jwt', this.token);
       localStorage.setItem('gymdist_aluno_id', this.alunoId);
-
-      this.mostrarToast('Demonstração do portal iniciada.', 'success');
+      document.getElementById('form-login-aluno').reset();
+      this.mostrarToast('Login realizado com sucesso.', 'success');
       await this.carregarDadosDoAluno();
-    } catch (e) {
-      this.mostrarToast(`Erro ao conectar: ${e.message}`, 'danger');
-    } finally {
-      botao.disabled = false;
-    }
+    } catch (error) {
+      alerta.textContent = error.message; alerta.classList.remove('d-none');
+    } finally { botao.disabled = false; }
   }
 
   logout(confirmar = true) {
     const alteracoes = Array.from(document.querySelectorAll('.input-carga-real, .chk-concluido')).some(campo =>
       campo.type === 'checkbox' ? campo.checked !== campo.defaultChecked : campo.value !== campo.defaultValue);
-    if (confirmar && alteracoes && !window.confirm('Há alterações no treino não salvas. Deseja descartá-las e sair da demonstração?')) return false;
+    if (confirmar && alteracoes && !window.confirm('Há alterações no treino não salvas. Deseja descartá-las e sair do portal?')) return false;
     this.token = null;
     this.alunoId = null;
     this.alunoDados = null;
@@ -267,13 +231,13 @@ class AlunoApp {
       const itensHtml = f.itens.map(item => `
         <div class="exercicio-item-card" data-item-id="${item.id}">
           <div>
-            <strong>${item.nomeExercicio}</strong><br>
-            <small class="text-muted">${item.grupoMuscular || 'Geral'}</small>
+            <strong>${this.escaparTexto(item.nomeExercicio)}</strong><br>
+            <small class="text-muted">${this.escaparTexto(item.grupoMuscular || 'Geral')}</small>
           </div>
           <div>${item.series}x${item.repeticoes}</div>
           <div title="Carga sugerida pelo instrutor">Sug.: ${item.cargaSugerida}kg</div>
           <div>
-            <input type="number" step="0.5" class="form-control form-control-sm input-carga-real"
+            <input type="number" step="0.5" min="0" max="1000" class="form-control form-control-sm input-carga-real"
                    value="${item.cargaUsada > 0 ? item.cargaUsada : item.cargaSugerida}"
                    placeholder="Peso usado (kg)" ${inativo ? 'disabled' : ''}>
           </div>
@@ -290,8 +254,8 @@ class AlunoApp {
         <div class="ficha-card" id="card-ficha-${f.id}">
           <div class="ficha-header">
             <div>
-              <strong>${f.titulo}</strong>
-              <small class="text-muted d-block">Objetivo: ${f.objetivo} · Criada em: ${f.dataCriacao || 'Recente'}</small>
+              <strong>${this.escaparTexto(f.titulo)}</strong>
+              <small class="text-muted d-block">Objetivo: ${this.escaparTexto(f.objetivo)} · Criada em: ${f.dataCriacao || 'Recente'}</small>
             </div>
             ${badgeStatus}
           </div>
@@ -325,17 +289,15 @@ class AlunoApp {
     const rows = card.querySelectorAll('.exercicio-item-card[data-item-id]');
     const itens = [];
 
-    rows.forEach(row => {
-      const itemId = row.dataset.itemId;
-      const cargaUsada = parseFloat(row.querySelector('.input-carga-real')?.value) || 0;
-      const concluido = row.querySelector('.chk-concluido')?.checked || false;
-
-      itens.push({
-        itemId,
-        cargaUsada,
-        concluido
-      });
-    });
+    for (const row of rows) {
+      const valor = row.querySelector('.input-carga-real')?.value;
+      const cargaUsada = Number(valor);
+      if (valor === '' || !Number.isFinite(cargaUsada) || cargaUsada < 0 || cargaUsada > 1000) {
+        this.mostrarToast('Informe a carga usada em kg, entre 0 e 1000. Não use valores negativos.', 'warning');
+        return;
+      }
+      itens.push({ itemId:row.dataset.itemId, cargaUsada, concluido:row.querySelector('.chk-concluido')?.checked || false });
+    }
 
     try {
       await this.atualizarMatricula();
@@ -479,13 +441,9 @@ class AlunoApp {
       info: 'ℹ️'
     };
 
-    toast.innerHTML = `
-      <div class="toast-icon">${icones[tipo] || '•'}</div>
-      <div class="toast-content">
-        <div class="toast-message">${mensagem}</div>
-      </div>
-      <button class="toast-close">&times;</button>
-    `;
+    const mensagemEl = document.createElement('span'); mensagemEl.textContent = mensagem;
+    const fechar = document.createElement('button'); fechar.className = 'toast-close'; fechar.textContent = '×';
+    toast.append(mensagemEl, fechar);
 
     toast.querySelector('.toast-close').addEventListener('click', () => {
       toast.remove();
@@ -501,6 +459,9 @@ class AlunoApp {
   }
 
   setupEventListeners() {
+    window.addEventListener('unhandledrejection', event => {
+      event.preventDefault(); this.mostrarToast('Não foi possível concluir a operação. Tente novamente em instantes.', 'danger');
+    });
     // Abas
     document.querySelectorAll('.nav-tab').forEach(tab => {
       tab.addEventListener('click', () => this.navegarParaAba(tab.dataset.tab));
@@ -509,13 +470,7 @@ class AlunoApp {
     // Login Form
     document.getElementById('form-login-aluno')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const alunoId = document.getElementById('login-aluno-select').value;
-
-      if (!alunoId) {
-        this.mostrarToast('Selecione seu nome de aluno.', 'warning');
-        return;
-      }
-      this.login(alunoId);
+      this.login(document.getElementById('login-email-aluno').value, document.getElementById('login-senha-aluno').value);
     });
 
     // Logout

@@ -17,6 +17,9 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class GrpcClientConfig {
+    @Value("${GRPC_IAM:false}")
+    private boolean iam;
+
     private ManagedChannel criarCanal(String host, int port, boolean tls) {
         var builder = ManagedChannelBuilder.forAddress(host, port);
         if (tls) {
@@ -59,19 +62,25 @@ public class GrpcClientConfig {
 
     @Bean
     public AlunoServiceGrpc.AlunoServiceBlockingStub alunoServiceStub(
-            @Qualifier("alunoChannel") ManagedChannel channel) {
-        return AlunoServiceGrpc.newBlockingStub(channel);
+            @Qualifier("alunoChannel") ManagedChannel channel,
+            @Value("${grpc.aluno.host}") String host) {
+        var stub = AlunoServiceGrpc.newBlockingStub(channel);
+        return iam ? stub.withCallCredentials(new CloudRunCredentials("https://" + host)) : stub;
     }
 
     @Bean
     public TreinoServiceGrpc.TreinoServiceBlockingStub treinoServiceStub(
-            @Qualifier("treinoChannel") ManagedChannel channel) {
-        return TreinoServiceGrpc.newBlockingStub(channel);
+            @Qualifier("treinoChannel") ManagedChannel channel,
+            @Value("${grpc.treino.host}") String host) {
+        var stub = TreinoServiceGrpc.newBlockingStub(channel);
+        return iam ? stub.withCallCredentials(new CloudRunCredentials("https://" + host)) : stub;
     }
 
     @Bean
     public FinanceiroServiceGrpc.FinanceiroServiceBlockingStub financeiroServiceStub(
-            @Qualifier("financeiroChannel") ManagedChannel channel) {
-        return FinanceiroServiceGrpc.newBlockingStub(channel);
+            @Qualifier("financeiroChannel") ManagedChannel channel,
+            @Value("${grpc.financeiro.host}") String host) {
+        var stub = FinanceiroServiceGrpc.newBlockingStub(channel);
+        return iam ? stub.withCallCredentials(new CloudRunCredentials("https://" + host)) : stub;
     }
 }

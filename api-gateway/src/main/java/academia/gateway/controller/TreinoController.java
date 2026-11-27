@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import academia.gateway.seguranca.AcessoAluno;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -112,6 +113,7 @@ public class TreinoController {
         var protoReq = BuscarFichaTreinoRequest.newBuilder().setId(id).build();
         var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarFichaTreino(protoReq);
+        AcessoAluno.verificar(protoResp.getAlunoId());
         return ResponseEntity.ok(FichaTreinoResponseDto.fromProto(protoResp));
     }
 
@@ -126,6 +128,7 @@ public class TreinoController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<List<FichaTreinoResponseDto>> listarFichasPorAluno(@PathVariable("alunoId") String alunoId) {
+        AcessoAluno.verificar(alunoId);
         var protoReq = ListarFichasPorAlunoRequest.newBuilder().setAlunoId(alunoId).build();
         var stubComPrazo = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.listarFichasPorAluno(protoReq);
@@ -154,6 +157,7 @@ public class TreinoController {
         // Consulta o aluno vinculado a ficha, sem confiar em dados enviados pelo navegador.
         var ficha = treinoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS)
                 .buscarFichaTreino(BuscarFichaTreinoRequest.newBuilder().setId(id).build());
+        AcessoAluno.verificar(ficha.getAlunoId());
         matriculaTreinoService.validarRegistroExecucao(ficha.getAlunoId());
 
         var protoReq = academia.grpc.RegistrarExecucaoRequest.newBuilder()

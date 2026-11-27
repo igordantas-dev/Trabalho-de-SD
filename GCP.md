@@ -18,7 +18,7 @@ Com INSTANCE_CONNECTION_NAME, constroem a URL JDBC para o conector e usam:
 | DB_USER | gymflow_app |
 | DB_PASSWORD | Referencia ao secret gymflow-db-password, versao 1 |
 | DB_POOL_SIZE | 3 |
-| DB_SCHEMA_MODE | update, enquanto nao forem aplicadas migracoes |
+| DB_SCHEMA_MODE | validate, apos aplicar as migracoes V001 e V002 |
 | PORT | Fornecida pelo Cloud Run |
 
 O conector usa IP publico da instancia, credenciais da conta de servico do
@@ -27,8 +27,8 @@ chaves JSON no conteiner. A conta de servico dos microsservicos precisa de
 roles/cloudsql.client e acesso ao secret especifico.
 O conector protege/autentica o transporte; DB_USER/DB_PASSWORD autenticam o
 usuario dentro do PostgreSQL.
-Antes da publicacao final, conferir criacao do schema e permissao CREATE
-do usuario no schema public. A conexao real ainda precisa ser validada no GCP.
+A conexao com Cloud SQL ja foi validada no fluxo completo. Para a atualizacao
+de login, aplique V002 antes de publicar aluno-service; consulte AUTH.md.
 
 ## Resiliencia
 
@@ -140,88 +140,52 @@ Para mostrar a evidencia no console:
 https://console.cloud.google.com/logs/query?project=sd2026
 Cole o filtro impresso pelo script e mostre as tres tentativas.
 
-## Ainda necessario antes da entrega
+## Publicar login e proteger os microsservicos
 
-Para publicar somente o Gateway com o prazo ajustado, envie os commits para
-develop, atualize o clone do Cloud Shell e execute:
+Siga [AUTH.md](AUTH.md), incluindo preparacao da credencial administrativa,
+migracao V002, Cloud Build e implantacao. O Gateway usa JWT para autenticar
+usuarios da aplicacao e ID tokens IAM para autenticar sua conta de servico nos
+tres microsservicos. Sao mecanismos distintos. Nao grave chaves JSON no codigo.
+
+O frontend e o Gateway permanecem publicos na plataforma. Os tres microsservicos
+exigem roles/run.invoker para a conta do Gateway; seus URLs HTTPS continuam
+existindo, mas chamadas diretas sem identidade IAM recebem acesso negado.
+
+O hash da senha da gestao fica em gymflow-admin-password-hash no Secret Manager.
+ADMIN_LOGIN e uma variavel comum. ADMIN_PASSWORD_HASH e JWT_SECRET devem ser
+referencias a secrets. As senhas dos alunos ficam como hashes no Cloud SQL.
+Confira variaveis, referencias e contas de servico no painel do Cloud Run.
+
+## Conferir e ajustar a escala
 
 ```bash
-bash scripts/Update-Gateway.sh
+python3 scripts/Scaling-Gcp.py status
+python3 scripts/Scaling-Gcp.py economia
 ```
 
-O script publica uma imagem com a tag do commit e atualiza somente a imagem e
-GRPC_DEADLINE_SECONDS=20 no servico existente, preservando hosts e segredos.
-Nao habilita instancias minimas permanentemente.
+O primeiro comando apenas consulta os minimos/maximos de servico e revisao.
+O segundo configura minimo 0 e maximo 2 nos cinco servicos. Na apresentacao:
 
-- Conexao com Cloud SQL e fluxo HTTPS validados pelo teste de cadastro,
-  consulta, treino, mensalidade e pagamento em 23/11/2026.
-- Scripts de schema/baseline em db/: consulte db/README.md para testar,
-  validar o banco existente e registrar a versao 001.
-- Cinco servicos implantados: alunos, treinos, financeiro, Gateway e frontend.
-- Configurar variaveis/segredos e conferir no console.
-- Demonstracao de resiliência no Cloud Run concluida; guardar os prints
-  do Cloud Logging com as tres tentativas.
-- Grupo confirmou exclusao das VMs antigas; guardar os prints de cada projeto.
+```bash
+python3 scripts/Scaling-Gcp.py apresentacao
+```
+
+Esse modo configura minimo 2 e maximo 2 por servico. Execute com antecedencia,
+aguarde os servicos ficarem prontos e teste o fluxo HTTPS. Depois de apresentar,
+volte a economia para a correcao. A escala nao e um agendamento automatico.
+Minimo zero permite cold start; o banco Cloud SQL continua sendo cobrado.
+
+## Evidencias para entrega
+
+- Fluxo HTTPS com credenciais, persistencia real e consulta apos reiniciar.
+- Permissoes: aluno ve somente seus dados e executa somente sua propria ficha.
+- Resiliencia: erro tratado, alunos disponiveis e tentativas no Cloud Logging.
+- Cinco servicos gerenciados e variaveis/referencias a secrets no painel.
+- VMs antigas excluidas/desativadas nos projetos dos integrantes.
 - Relatorio PDF de ate 5 paginas com arquitetura e URLs reais.
 
 Referencias:
 - https://docs.cloud.google.com/sql/docs/postgres/connect-run
-- https://github.com/GoogleCloudPlatform/cloud-sql-jdbc-socket-factory
+- https://docs.cloud.google.com/run/docs/authenticating/service-to-service
+- https://docs.cloud.google.com/run/docs/configuring/min-instances
 - https://grpc.io/docs/guides/retry/
-
-
-## Atualizar frontend e treinos apos as correcoes de interface
-
-Na branch develop atualizada, sem alteracoes locais, execute no Cloud Shell:
-
-```bash
-bash scripts/Update-FrontendTreino.sh
-```
-
-O script publica as duas imagens com a tag do commit e atualiza os servicos
-existentes, preservando variaveis, secrets, contas de servico e configuracoes.
-As imagens anteriores sao exibidas antes da atualizacao para facilitar uma
-restauracao, se necessaria. O Gateway nao precisa ser republicado nesta etapa.
-
-A interface identifica o acesso compartilhado como demonstracao, sem solicitar
-uma senha que nao e conferida. O portal apenas consulta mensalidades; a baixa
-manual e feita no painel com "Registrar pagamento recebido". Isso nao implementa
-contas individuais nem isolamento de acesso entre usuarios.
-
-A ficha permanece PENDENTE enquanto existir exercicio nao concluido. A interface
-exibe "Em andamento" para progresso parcial. Todos os exercicios feitos levam a
-CONCLUIDO e uma data de conclusao; desmarcar um exercicio remove essa data.
-Nao e necessaria alteracao de schema para estas correcoes.
-
-Depois da publicacao, execute Test-Gymflow.ps1 com -BaseUrl apontando para a URL
-publica do frontend e confira no navegador os paineis, o portal, a saida e o
-salvamento parcial/completo de uma ficha com pelo menos dois exercicios.
-
-
-## Atualizar o portal e o Gateway pelo Cloud Build
-
-O envio pelo Docker do Cloud Shell falhou por recusa de conexao, enquanto a
-publicacao pelo Cloud Build foi validada. Para publicar as correcoes do portal e
-a regra de matricula inativa, use a develop atualizada:
-
-```bash
-gcloud builds submit . --project=sd2026 --region=us-central1 \
-  --config=cloudbuild/frontend-gateway.json --ignore-file=.dockerignore \
-  --substitutions="_TAG=$(git rev-parse --short HEAD)"
-```
-
-Somente depois de STATUS: SUCCESS, atualize as imagens dos servicos:
-
-```bash
-TAG="$(git rev-parse --short HEAD)"
-gcloud run services update gymflow-gateway --project=sd2026 --region=us-central1 \
-  --image="us-central1-docker.pkg.dev/sd2026/gymflow/api-gateway:$TAG"
-gcloud run services update gymflow-frontend --project=sd2026 --region=us-central1 \
-  --image="us-central1-docker.pkg.dev/sd2026/gymflow/frontend:$TAG"
-```
-
-A matricula INATIVO permite consultar historico, mas impede registrar execucao
-pela API REST. O Gateway consulta o aluno vinculado a ficha antes de enviar a
-escrita ao treino-service. Se nao puder verificar a matricula, nao grava.
-A consulta de mensalidades permanece disponivel independentemente da matricula.
-As variaveis, os secrets e as contas de servico existentes sao preservados.

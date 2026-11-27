@@ -2,6 +2,7 @@
 """Cloud Shell demo: loss of Gateway -> Financeiro connectivity, with restoration."""
 import argparse
 import json
+import getpass
 from pathlib import Path
 import re
 import subprocess
@@ -48,6 +49,7 @@ class Demo:
         )
         self.base_url = None
         self.token = None
+        self.credentials = None
 
     def service(self, name):
         return gcloud([
@@ -63,9 +65,11 @@ class Demo:
             "--quiet",
         ])
 
-    def request(self, route):
+    def request(self, route, data=None):
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
-        request = Request(f"{self.base_url}/api/{route}", headers=headers)
+        if data is not None: headers['Content-Type'] = 'application/json'
+        request = Request(f"{self.base_url}/api/{route}", headers=headers,
+            data=json.dumps(data).encode() if data is not None else None)
         try:
             with urlopen(request, timeout=60) as response:
                 return response.status, json.load(response)
@@ -73,8 +77,8 @@ class Demo:
             # Do not print bodies: they may contain user data.
             return error.code, None
 
-    def expect(self, route, code):
-        actual, data = self.request(route)
+    def expect(self, route, code, payload=None):
+        actual, data = self.request(route, payload)
         if actual != code:
             raise RuntimeError(f"{route.split('/')[0]}: esperado HTTP {code}, recebido {actual}")
         return data
@@ -131,7 +135,14 @@ class Demo:
         if not host or host in ("127.0.0.1", "localhost") or not port:
             raise RuntimeError("Endereco original do financeiro ausente ou ja alterado.")
         self.base_url = self.service("gymflow-frontend")["status"]["url"].rstrip("/")
-        auth = self.expect("gerarToken", 200)
+        if self.credentials is None:
+            self.credentials = (input('E-mail da gestao: ').strip(), getpass.getpass('Senha da gestao: '))
+        email, password = self.credentials
+        try:
+            auth = self.expect("autenticar", 200, {"username":email,"senha":password,"perfil":"ADMIN"})
+        finally:
+            self.credentials = None
+            password = None
         if not isinstance(auth, dict) or not auth.get("token"):
             raise RuntimeError("Token nao foi retornado.")
         self.token = auth["token"]

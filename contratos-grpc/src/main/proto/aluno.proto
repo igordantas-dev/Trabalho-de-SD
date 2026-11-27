@@ -9,6 +9,8 @@ option java_package = "academia.grpc";
 // SERVIÇO 1: Gestão de Alunos
 // ==========================================
 service AlunoService {
+  rpc AutenticarAluno (AutenticarAlunoRequest) returns (AlunoResponse);
+  rpc DefinirSenhaAluno (DefinirSenhaAlunoRequest) returns (AlunoResponse);
   // Cadastra um novo aluno
   rpc CadastrarAluno (CadastrarAlunoRequest) returns (AlunoResponse);
 
@@ -31,6 +33,7 @@ message CadastrarAlunoRequest {
   string telefone = 4;
   double peso     = 5; // kg
   double altura   = 6; // metros
+  string senha    = 7; // Somente no transporte TLS; persistida como hash.
 }
 
 message BuscarAlunoRequest {
@@ -62,4 +65,13 @@ message AlunoResponse {
 
 message ListaAlunosResponse {
   repeated AlunoResponse alunos = 1;
+}
+
+message AutenticarAlunoRequest {
+  string email = 1;
+  string senha = 2;
+}
+message DefinirSenhaAlunoRequest {
+  string aluno_id = 1;
+  string senha = 2;
 }

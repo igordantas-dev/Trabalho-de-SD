@@ -4,6 +4,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,8 +48,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 1. Endpoints de autenticação pública
                         .requestMatchers(
-                                "/api/autenticar",
-                                "/api/gerarToken"
+                                "/api/autenticar"
                         ).permitAll()
 
                         // 2. Swagger / OpenAPI 3
@@ -67,17 +74,33 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 4. Qualquer outra rota da API de negócio exige token JWT válido
-                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/api/gerarToken").denyAll()
+                        .requestMatchers("/api/sessao").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/buscarAluno/*", "/api/buscarFichaTreino/*", "/api/listarFichasAluno/*", "/api/buscarMensalidade/*", "/api/listarMensalidadesAluno/*").hasAnyRole("ADMIN", "ALUNO")
+                        .requestMatchers(HttpMethod.POST, "/api/registrarExecucaoTreino/*").hasRole("ALUNO")
+                        .requestMatchers("/api/**").hasRole("ADMIN")
 
                         // 5. Demais recursos
                         .anyRequest().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.decoder(jwtDecoder()))
+                        .jwt(jwt -> jwt.decoder(jwtDecoder()).jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint(customAuthenticationEntryPoint())
+                        .accessDeniedHandler((request, response, ex) -> {
+                            response.setStatus(403); response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"codigo\":\"ACESSO_NEGADO\",\"mensagem\":\"Voce nao tem permissao para realizar esta operacao.\"}");
+                        })
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        var roles = new JwtGrantedAuthoritiesConverter();
+        roles.setAuthoritiesClaimName("perfil"); roles.setAuthorityPrefix("ROLE_");
+        var converter = new JwtAuthenticationConverter(); converter.setJwtGrantedAuthoritiesConverter(roles);
+        return converter;
     }
 
     /**
@@ -89,7 +112,14 @@ public class SecurityConfig {
                 segredoJwt.getBytes(StandardCharsets.UTF_8),
                 "HmacSHA256"
         );
-        return NimbusJwtDecoder.withSecretKey(secretKey).build();
+        var decoder = NimbusJwtDecoder.withSecretKey(secretKey).build();
+        OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> versao = jwt ->
+            "2".equals(jwt.getClaimAsString("auth_version"))
+                && ("ADMIN".equals(jwt.getClaimAsString("perfil")) || "ALUNO".equals(jwt.getClaimAsString("perfil")))
+            ? OAuth2TokenValidatorResult.success()
+            : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Sessao antiga ou invalida", null));
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), versao));
+        return decoder;
     }
 
     /**
@@ -100,9 +130,9 @@ public class SecurityConfig {
         return (request, response, authException) -> {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"" + authException.getMessage() + "\"");
+            response.setHeader("WWW-Authenticate", "Bearer");
             response.getWriter().write("""
-                    {"erro":"UNAUTHORIZED","mensagem":"Token ausente, invalido ou expirado. Envie 'Authorization: Bearer <token>'"}
+                    {"erro":"UNAUTHORIZED","mensagem":"Sua sessao expirou ou nao foi iniciada. Entre novamente."}
                     """.trim());
         };
     }

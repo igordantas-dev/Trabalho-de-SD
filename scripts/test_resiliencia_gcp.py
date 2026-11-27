@@ -35,6 +35,7 @@ class ResilienceDemoTest(unittest.TestCase):
             else config if not self.snapshot.exists()
             else {"status": {"latestReadyRevisionName": "fault-revision"}}
         ))
+        self.demo.credentials = ("teste@example.com", "somente-teste")
         self.demo.endpoint = Mock()
         self.demo.retry_logs = Mock()
         self.responses = [

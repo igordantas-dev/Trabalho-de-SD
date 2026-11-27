@@ -1,6 +1,9 @@
 package academia.gateway.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -39,12 +42,13 @@ public record CriarFichaTreinoRequest(
 
             @NotNull(message = "series é obrigatório")
             @Positive(message = "series deve ser maior que zero")
-            Integer series,
+            @Max(value=100,message="Informe no máximo 100 séries.") Integer series,
 
             @NotNull(message = "repeticoes é obrigatório")
             @Positive(message = "repeticoes deve ser maior que zero")
-            Integer repeticoes,
+            @Max(value=1000,message="Informe no máximo 1000 repetições.") Integer repeticoes,
 
-            Double cargaSugerida  // opcional — 0 = usar última carga do aluno
+            @DecimalMin(value="0",message="A carga não pode ser negativa.")
+            @DecimalMax(value="1000",message="Informe a carga em kg, até 1000.") Double cargaSugerida  // opcional — 0 = usar última carga do aluno
     ) {}
 }

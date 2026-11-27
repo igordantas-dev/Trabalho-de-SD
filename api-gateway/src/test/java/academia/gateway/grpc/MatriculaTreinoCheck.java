@@ -36,6 +36,11 @@ public final class MatriculaTreinoCheck {
             }).build().start();
         ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.getPort()).usePlaintext().build();
         try {
+            var jwt = org.springframework.security.oauth2.jwt.Jwt.withTokenValue("test")
+                .header("alg","HS256").subject("aluno@teste.com").claim("aluno_id","aluno-da-ficha").build();
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken(jwt,
+                    java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ALUNO"))));
             var regra = new MatriculaTreinoService(AlunoServiceGrpc.newBlockingStub(channel));
             var controller = new TreinoController(TreinoServiceGrpc.newBlockingStub(channel), null, regra);
             var request = new RegistrarExecucaoRequest(List.of(new RegistrarExecucaoRequest.ExecucaoItemDto("item", 10.0, true)));
@@ -51,6 +56,7 @@ public final class MatriculaTreinoCheck {
             esperarErro(controller, request, Status.Code.UNAVAILABLE);
             conferir(escritas.get() == 1, "falha ao conferir matricula impede gravacao");
         } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
             server.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         }

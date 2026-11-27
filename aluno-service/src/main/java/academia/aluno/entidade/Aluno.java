@@ -51,6 +51,12 @@ public class Aluno {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @Column(name = "senha_hash", length = 512)
+    private String senhaHash;
+
+    public String getSenhaHash() { return senhaHash; }
+    public void setSenhaHash(String valor) { senhaHash = valor; }
+
     /** Construtor sem argumentos exigido pelo JPA/Hibernate */
     public Aluno() {}
 

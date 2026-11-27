@@ -58,5 +58,43 @@ class SchemaRunnerTest(unittest.TestCase):
         self.proxy.terminate.assert_called_once()
 
 
+class CloudSqlTargetTest(unittest.TestCase):
+    def run_mode(self, mode):
+        proxy = Mock()
+        proxy.poll.return_value = None
+        with patch.object(module.shutil, 'which', return_value='/usr/bin/tool'), \
+             patch.object(module, 'free_port', return_value=19470), \
+             patch.object(module, 'wait_proxy'), \
+             patch.object(module.subprocess, 'Popen', return_value=proxy) as start, \
+             patch.object(module.subprocess, 'run', side_effect=[
+                 subprocess.CompletedProcess([], 0, stdout='senha-apenas-de-teste\n'),
+                 subprocess.CompletedProcess([], 0),
+             ]) as run, patch('builtins.print'):
+            module.run_schema(mode)
+        proxy.terminate.assert_called_once()
+        proxy.wait.assert_called_once()
+        self.assertEqual(start.call_args.args[0][-1], 'sd2026:us-central1:gymflow-db')
+        self.assertIn('--project=sd2026', run.call_args_list[0].args[0])
+        args = run.call_args_list[1].args[0]
+        self.assertEqual(args[args.index('-U') + 1], 'gymflow_app')
+        self.assertEqual(args[args.index('-d') + 1], 'academia')
+        self.assertEqual(args[args.index('-h') + 1], '127.0.0.1')
+        self.assertEqual(args[args.index('-p') + 1], '19470')
+        return Path(args[args.index('-f') + 1])
+
+    def test_reset_uses_cloud_proxy_and_only_maintenance_script(self):
+        self.assertEqual(self.run_mode('reset-data').name, 'Reset-cloud-data.psql')
+
+    def test_apply_does_not_trigger_reset(self):
+        self.assertEqual(self.run_mode('apply').name, 'Apply.psql')
+
+    def test_invalid_mode_stops_before_subprocess(self):
+        with patch.object(module.subprocess, 'run') as run:
+            with self.assertRaises(ValueError):
+                module.run_schema('reset-local')
+        run.assert_not_called()
+
+
+
 if __name__ == "__main__":
     unittest.main()

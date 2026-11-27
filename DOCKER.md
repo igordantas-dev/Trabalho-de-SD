@@ -16,6 +16,7 @@ Confira o volume existente e pare o conteiner antigo antes de iniciar o Compose:
 
 ```powershell
 cd C:\workspace\Trabalho-de-SD
+python .\scripts\Setup-LocalAuth.py
 docker volume inspect gymflow-postgres-data
 docker stop gymflow-postgres
 docker compose config --quiet
@@ -26,6 +27,10 @@ docker compose logs --tail=60
 
 Em uma instalacao nova, sem banco anterior, crie o volume antes:
 `docker volume create gymflow-postgres-data`.
+O configurador exige Python 3 e deve ser executado somente na primeira configuracao.
+Ele solicita e-mail/senha da gestao e grava .env.auth, ignorado pelo Git e pelo build.
+Nao envie esse arquivo a outras pessoas. Se ja existir, nao o recrie para iniciar
+os conteineres. O env_file raw exige Docker Compose 2.30 ou superior.
 As credenciais deste Compose sao somente para desenvolvimento local.
 Em um volume existente, as variaveis POSTGRES_* nao alteram usuarios ou senhas.
 
@@ -64,8 +69,9 @@ Para outro endereco: acrescente -BaseUrl https://URL-DO-FRONTEND.
 - Os servidores gRPC continuam recebendo h2c dentro do conteiner; configure
   HTTP/2 no Cloud Run. A plataforma termina o TLS dos endpoints publicos.
 - O modo local continua usando gRPC sem TLS na rede privada do Compose.
-- Esta etapa presume invocacao publica dos endpoints da plataforma. Se for
-  exigida autenticacao IAM entre servicos, sera necessario adicionar ID tokens.
+- Na nuvem, GRPC_IAM=true faz o Gateway enviar ID tokens da sua conta de servico.
+  Os microsservicos exigem roles/run.invoker para essa identidade. Localmente,
+  GRPC_IAM permanece false, usando a rede privada do Compose. Consulte AUTH.md.
 - Referencias: https://docs.cloud.google.com/run/docs/triggering/grpc e
   https://docs.cloud.google.com/run/docs/configuring/http2.
 
@@ -79,9 +85,15 @@ docker start gymflow-postgres
 O volume externo preserva os dados. Nao remova o volume.
 Nao execute o banco antigo enquanto o banco do Compose estiver ativo.
 
-## Proximas etapas da entrega
+## Acessos e verificacao
 
-Esta configuracao valida a containerizacao local, ainda nao a implantacao
-final. A conexao com Cloud SQL e a politica de retries estao implementadas;
-consulte GCP.md para variaveis e testes. Ainda faltam validar o banco real,
-adicionar scripts de schema e implantar os servicos na nuvem.
+Gestao: http://localhost:8081, com e-mail/senha definidos no configurador.
+Aluno: http://localhost:8081/aluno.html, com e-mail do cadastro e senha definida
+pela gestao. Para alunos existentes, use Definir senha na lista de alunos.
+
+No painel, confira prescricao e carga informada. Marcar exercicios e salvar
+execucao e permitido apenas no Portal do Aluno. Matricula INATIVO bloqueia
+novas execucoes, mas preserva consultas ao historico e as mensalidades.
+
+O teste Test-Gymflow.ps1 solicita credenciais de gestao. Consulte AUTH.md para
+os casos de verificacao do login, altura em metros e publicacao na nuvem.

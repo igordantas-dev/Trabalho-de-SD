@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/style.css?v=20261123-demonstracao">
+  <link rel="stylesheet" href="css/style.css?v=20261127-login">
 </head>
 <body>
 
@@ -47,7 +47,7 @@
 
         <div class="jwt-badge-wrapper" id="jwt-badge-wrapper">
           <span class="status-indicator active" id="jwt-indicator"></span>
-          <span class="jwt-label" id="jwt-label">Sem sessão de demonstração</span>
+          <span class="jwt-label" id="jwt-label">Não autenticado</span>
         </div>
 
         <button class="btn btn-primary btn-sm" id="btn-login-modal">
@@ -206,14 +206,19 @@
                 </div>
                 <div class="form-group col">
                   <label for="aluno-peso">Peso (kg)</label>
-                  <input type="number" step="0.1" id="aluno-peso" class="form-control" placeholder="80.5">
+                  <input type="number" step="0.1" min="1" max="500" id="aluno-peso" class="form-control" placeholder="80.5">
                 </div>
                 <div class="form-group col">
                   <label for="aluno-altura">Altura (m)</label>
-                  <input type="number" step="0.01" id="aluno-altura" class="form-control" placeholder="1.78">
+                  <input type="number" step="0.01" min="0.5" max="2.5" id="aluno-altura" class="form-control" placeholder="1.78">
                 </div>
               </div>
 
+              <div class="form-group">
+                <label for="aluno-senha">Senha inicial de acesso *</label>
+                <input id="aluno-senha" type="password" class="form-control" minlength="8" maxlength="128" autocomplete="new-password" required>
+                <small class="text-muted">Mínimo de 8 caracteres. O aluno entrará com o e-mail cadastrado e esta senha.</small>
+              </div>
               <div class="form-actions">
                 <button type="submit" class="btn btn-primary" id="btn-submit-aluno">
                   Cadastrar Aluno
@@ -484,15 +489,33 @@
 
   </main>
 
-  <!-- Acesso de demonstracao -->
   <div id="modal-login" class="modal-backdrop">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-acesso-demo">
-      <div class="modal-header">
-        <h3 id="titulo-acesso-demo">Acesso de demonstração</h3>
-      </div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-login">
+      <div class="modal-header"><h3 id="titulo-login">Entrar na gestão</h3></div>
       <div class="modal-body">
-        <p class="text-muted mb-3">Explore o sistema com dados fictícios. Este acesso é compartilhado e não utiliza contas individuais.</p>
-        <button type="button" class="btn btn-primary w-100" id="btn-quick-token">Entrar na demonstração</button>
+        <p class="text-muted mb-3">Use o e-mail e a senha da gestão da academia.</p>
+        <div id="alerta-login" class="alert alert-danger d-none" role="alert"></div>
+        <form id="form-login">
+          <div class="form-group"><label for="login-email">E-mail</label><input id="login-email" type="email" class="form-control" autocomplete="username" maxlength="255" required></div>
+          <div class="form-group"><label for="login-senha">Senha</label><input id="login-senha" type="password" class="form-control" autocomplete="current-password" maxlength="128" required></div>
+          <button type="submit" id="btn-do-login" class="btn btn-primary w-100">Entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-senha-aluno" class="modal-backdrop">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="titulo-senha-aluno">
+      <div class="modal-header"><h3 id="titulo-senha-aluno">Definir senha do aluno</h3><button class="modal-close" onclick="app.fecharModal('modal-senha-aluno')">&times;</button></div>
+      <div class="modal-body">
+        <p id="senha-aluno-nome" class="text-muted mb-3"></p>
+        <div id="alerta-senha-aluno" class="alert alert-danger d-none" role="alert"></div>
+        <form id="form-senha-aluno">
+          <input id="senha-aluno-id" type="hidden">
+          <div class="form-group"><label for="nova-senha-aluno">Nova senha (mínimo 8 caracteres)</label><input id="nova-senha-aluno" type="password" class="form-control" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+          <div class="form-group"><label for="confirmar-senha-aluno">Confirmar senha</label><input id="confirmar-senha-aluno" type="password" class="form-control" autocomplete="new-password" minlength="8" maxlength="128" required></div>
+          <button type="submit" class="btn btn-primary w-100">Salvar senha</button>
+        </form>
       </div>
     </div>
   </div>
@@ -560,6 +583,8 @@
     </div>
   </div>
 
-  <script src="js/app.js?v=20261123-demonstracao"></script>
+  <script src="js/validacao.js?v=20261127-ptbr"></script>
+  <script src="js/http.js?v=20261127-login"></script>
+  <script src="js/app.js?v=20261127-ptbr"></script>
 </body>
 </html>

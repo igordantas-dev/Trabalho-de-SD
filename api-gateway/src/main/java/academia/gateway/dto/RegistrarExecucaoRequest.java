@@ -1,6 +1,7 @@
 package academia.gateway.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -24,7 +25,7 @@ public record RegistrarExecucaoRequest(
 
             @NotNull(message = "cargaUsada é obrigatória")
             @PositiveOrZero(message = "cargaUsada não pode ser negativa")
-            Double cargaUsada,
+            @DecimalMax(value="1000",message="Informe a carga em kg, até 1000.") Double cargaUsada,
 
             Boolean concluido
     ) {}

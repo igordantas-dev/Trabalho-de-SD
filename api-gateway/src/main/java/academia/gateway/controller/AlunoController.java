@@ -1,6 +1,8 @@
 package academia.gateway.controller;
 
 import academia.gateway.dto.AlunoResponseDto;
+import academia.gateway.dto.DefinirSenhaRequest;
+import academia.gateway.seguranca.AcessoAluno;
 import academia.gateway.dto.AtualizarStatusAlunoRequest;
 import academia.gateway.dto.CadastrarAlunoRequest;
 import academia.grpc.AlunoServiceGrpc;
@@ -54,7 +56,7 @@ public class AlunoController {
         var protoReq = academia.grpc.CadastrarAlunoRequest.newBuilder()
                 .setNome(dto.nome())
                 .setCpf(dto.cpf())
-                .setEmail(dto.email());
+                .setEmail(dto.email()).setSenha(dto.senha());
 
         if (dto.telefone() != null) protoReq.setTelefone(dto.telefone());
         if (dto.peso() != null) protoReq.setPeso(dto.peso());
@@ -97,6 +99,7 @@ public class AlunoController {
             @ApiResponse(responseCode = "401", description = "Não autenticado")
     })
     public ResponseEntity<AlunoResponseDto> buscarAluno(@PathVariable("id") String id) {
+        AcessoAluno.verificar(id);
         var protoReq = BuscarAlunoRequest.newBuilder().setId(id).build();
         var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.buscarAluno(protoReq);
@@ -127,5 +130,11 @@ public class AlunoController {
         var stubComPrazo = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS);
         var protoResp = stubComPrazo.atualizarStatusAluno(protoReq);
         return ResponseEntity.ok(AlunoResponseDto.fromProto(protoResp));
+    }
+    @PostMapping("/definirSenhaAluno/{id}")
+    public ResponseEntity<AlunoResponseDto> definirSenha(@PathVariable("id") String id, @Valid @RequestBody DefinirSenhaRequest dto) {
+        var resposta = alunoStub.withDeadlineAfter(deadlineSegundos, TimeUnit.SECONDS).definirSenhaAluno(
+            academia.grpc.DefinirSenhaAlunoRequest.newBuilder().setAlunoId(id).setSenha(dto.senha()).build());
+        return ResponseEntity.ok(AlunoResponseDto.fromProto(resposta));
     }
 }

@@ -8,6 +8,20 @@
       "args": [
         "build",
         "-f",
+        "aluno-service/Dockerfile",
+        "-t",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/aluno-service:${_TAG}",
+        "."
+      ]
+    },
+    {
+      "name": "gcr.io/cloud-builders/docker",
+      "env": [
+        "DOCKER_BUILDKIT=1"
+      ],
+      "args": [
+        "build",
+        "-f",
         "api-gateway/Dockerfile",
         "-t",
         "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/api-gateway:${_TAG}",
@@ -27,6 +41,7 @@
     }
   ],
   "images": [
+    "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/aluno-service:${_TAG}",
     "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/api-gateway:${_TAG}",
     "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/frontend:${_TAG}"
   ],

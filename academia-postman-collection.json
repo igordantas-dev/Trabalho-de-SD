@@ -39,7 +39,9 @@
 						}
 					],
 					"request": {
-						"auth": { "type": "noauth" },
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [
 							{
@@ -49,44 +51,19 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"username\": \"aluno\",\n  \"senha\": \"123456\"\n}"
+							"raw": "{\n  \"username\": \"SEU_EMAIL_GESTAO\",\n  \"senha\": \"SUA_SENHA\",\n  \"perfil\": \"ADMIN\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/autenticar",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "autenticar"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"autenticar"
+							]
 						},
 						"description": "Gera e retorna o token JWT assinado com HS256 (30 minutos de validade). O token é capturado automaticamente para a variável {{jwtToken}}."
-					}
-				},
-				{
-					"name": "Gerar Token Rápido de Laboratório",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    var json = pm.response.json();",
-									"    if (json.token) {",
-									"        pm.collectionVariables.set('jwtToken', json.token);",
-									"        console.log('Token JWT capturado automaticamente!');",
-									"    }",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": { "type": "noauth" },
-						"method": "GET",
-						"url": {
-							"raw": "{{baseUrl}}/api/gerarToken",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerarToken"]
-						},
-						"description": "Emite instantaneamente um token JWT de demonstração."
 					}
 				}
 			]
@@ -99,16 +76,24 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"nome\": \"Carlos Silva\",\n  \"cpf\": \"123.456.789-00\",\n  \"email\": \"carlos.silva@email.com\",\n  \"telefone\": \"(11) 98765-4321\",\n  \"peso\": 82.5,\n  \"altura\": 1.78\n}"
+							"raw": "{\n  \"nome\": \"Carlos Silva\",\n  \"cpf\": \"123.456.789-00\",\n  \"email\": \"carlos.silva@email.com\",\n  \"telefone\": \"(11) 98765-4321\",\n  \"peso\": 82.5,\n  \"altura\": 1.78,\n  \"senha\": \"SENHA_INICIAL_DO_ALUNO\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/cadastrarAluno",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "cadastrarAluno"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"cadastrarAluno"
+							]
 						}
 					}
 				},
@@ -118,8 +103,13 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/listarAlunos",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "listarAlunos"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"listarAlunos"
+							]
 						}
 					}
 				},
@@ -129,10 +119,19 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/buscarAluno/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscarAluno", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"buscarAluno",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DO_ALUNO" }
+								{
+									"key": "id",
+									"value": "UUID_DO_ALUNO"
+								}
 							]
 						}
 					}
@@ -142,7 +141,10 @@
 					"request": {
 						"method": "PATCH",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -150,10 +152,19 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/atualizarStatusAluno/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "atualizarStatusAluno", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"atualizarStatusAluno",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DO_ALUNO" }
+								{
+									"key": "id",
+									"value": "UUID_DO_ALUNO"
+								}
 							]
 						}
 					}
@@ -168,7 +179,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -176,8 +190,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/criarFichaTreino",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "criarFichaTreino"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"criarFichaTreino"
+							]
 						}
 					}
 				},
@@ -186,7 +205,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -194,8 +216,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/gerarTreinoIa",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerarTreinoIa"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"gerarTreinoIa"
+							]
 						}
 					}
 				},
@@ -205,10 +232,19 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/buscarFichaTreino/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscarFichaTreino", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"buscarFichaTreino",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DA_FICHA" }
+								{
+									"key": "id",
+									"value": "UUID_DA_FICHA"
+								}
 							]
 						}
 					}
@@ -219,10 +255,19 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/listarFichasAluno/:alunoId",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "listarFichasAluno", ":alunoId"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"listarFichasAluno",
+								":alunoId"
+							],
 							"variable": [
-								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
+								{
+									"key": "alunoId",
+									"value": "UUID_DO_ALUNO"
+								}
 							]
 						}
 					}
@@ -232,7 +277,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -240,10 +288,19 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/registrarExecucaoTreino/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "registrarExecucaoTreino", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"registrarExecucaoTreino",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DA_FICHA" }
+								{
+									"key": "id",
+									"value": "UUID_DA_FICHA"
+								}
 							]
 						}
 					}
@@ -258,7 +315,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -266,8 +326,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/gerarMensalidade",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "gerarMensalidade"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"gerarMensalidade"
+							]
 						}
 					}
 				},
@@ -277,10 +342,19 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/buscarMensalidade/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "buscarMensalidade", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"buscarMensalidade",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
+								{
+									"key": "id",
+									"value": "UUID_DA_MENSALIDADE"
+								}
 							]
 						}
 					}
@@ -291,10 +365,19 @@
 						"method": "GET",
 						"url": {
 							"raw": "{{baseUrl}}/api/listarMensalidadesAluno/:alunoId",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "listarMensalidadesAluno", ":alunoId"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"listarMensalidadesAluno",
+								":alunoId"
+							],
 							"variable": [
-								{ "key": "alunoId", "value": "UUID_DO_ALUNO" }
+								{
+									"key": "alunoId",
+									"value": "UUID_DO_ALUNO"
+								}
 							]
 						}
 					}
@@ -304,7 +387,10 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
 						],
 						"body": {
 							"mode": "raw",
@@ -312,10 +398,19 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/registrarPagamentoMensalidade/:id",
-							"host": ["{{baseUrl}}"],
-							"path": ["api", "registrarPagamentoMensalidade", ":id"],
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"registrarPagamentoMensalidade",
+								":id"
+							],
 							"variable": [
-								{ "key": "id", "value": "UUID_DA_MENSALIDADE" }
+								{
+									"key": "id",
+									"value": "UUID_DA_MENSALIDADE"
+								}
 							]
 						}
 					}

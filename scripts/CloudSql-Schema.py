@@ -33,15 +33,18 @@ def wait_proxy(proxy, port):
 
 
 def run_schema(mode):
-    if mode not in ("validate", "apply"):
-        raise ValueError("Modo deve ser validate ou apply.")
+    scripts = {
+        "validate": "Validate.psql",
+        "apply": "Apply.psql",
+        "reset-data": "maintenance/Reset-cloud-data.psql",
+    }
+    if mode not in scripts:
+        raise ValueError("Modo deve ser validate, apply ou reset-data.")
     for command in ("gcloud", "cloud-sql-proxy", "psql"):
         if not shutil.which(command):
             raise RuntimeError(f"Comando ausente no Cloud Shell: {command}")
 
-    script = Path(__file__).resolve().parent.parent / "db" / (
-        "Validate.psql" if mode == "validate" else "Apply.psql"
-    )
+    script = Path(__file__).resolve().parent.parent / "db" / scripts[mode]
     if not script.is_file():
         raise RuntimeError(f"Arquivo SQL ausente: {script}")
 
@@ -63,10 +66,13 @@ def run_schema(mode):
         try:
             wait_proxy(proxy, port)
             # -w prohibits password prompts; PGPASSWORD is passed only to psql.
+            if mode == "reset-data":
+                print(f"Limpando registros somente no Cloud SQL: {INSTANCE}, banco academia.", flush=True)
             subprocess.run([
                 "psql", "-X", "-w", "-h", "127.0.0.1", "-p", str(port),
                 "-U", "gymflow_app", "-d", "academia",
-                "-v", "ON_ERROR_STOP=1", "-f", str(script),
+                "-v", "ON_ERROR_STOP=1",
+                "-v", "cloud_sql_instance=" + INSTANCE, "-f", str(script),
             ], env=env, check=True)
         except BaseException:
             log.seek(0)
@@ -89,7 +95,7 @@ def run_schema(mode):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", nargs="?", default="validate", choices=("validate", "apply"))
+    parser.add_argument("mode", nargs="?", default="validate", choices=("validate", "apply", "reset-data"))
     args = parser.parse_args()
     try:
         run_schema(args.mode)

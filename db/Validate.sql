@@ -15,6 +15,7 @@ BEGIN
         ('alunos', 'peso', 'float8', NULL, 'YES'),
         ('alunos', 'altura', 'float8', NULL, 'YES'),
         ('alunos', 'status', 'varchar', 20, 'NO'),
+        ('alunos', 'senha_hash', 'varchar', 512, 'YES'),
         ('fichas_treino', 'id', 'uuid', NULL, 'NO'),
         ('fichas_treino', 'aluno_id', 'varchar', 255, 'NO'),
         ('fichas_treino', 'titulo', 'varchar', 255, 'NO'),
