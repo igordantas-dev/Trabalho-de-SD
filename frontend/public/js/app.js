@@ -134,8 +134,7 @@ class GymApp {
       if (resp.ok) {
         this.alunos = await resp.json();
 
-        // Verificação inteligente de inadimplência:
-        // Se o aluno estiver ATIVO mas tiver qualquer mensalidade ATRASADA, atualiza status para INADIMPLENTE
+        // Recalcula a situacao financeira nos dois sentidos, preservando matriculas inativas.
         await this.sincronizarInadimplenciaAlunos();
 
         this.renderizarTabelaAlunos();
@@ -153,26 +152,27 @@ class GymApp {
 
   async sincronizarInadimplenciaAlunos() {
     const hoje = new Date().toISOString().split('T')[0];
+    let houveFalha = false;
     for (const aluno of this.alunos) {
-      if (aluno.status === 'ATIVO') {
-        try {
-          const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${aluno.id}`);
-          if (resp.ok) {
-            const mensalidades = await resp.json();
-            const temVencida = mensalidades.some(m => 
-              m.status === 'ATRASADO' || (m.status === 'PENDENTE' && m.dataVencimento && m.dataVencimento < hoje)
-            );
-            if (temVencida) {
-              await this.apiRequest(`/api/atualizarStatusAluno/${aluno.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status: 'INADIMPLENTE' })
-              });
-              aluno.status = 'INADIMPLENTE';
-            }
-          }
-        } catch (_) {}
-      }
+      if (!['ATIVO', 'INADIMPLENTE'].includes(aluno.status)) continue;
+      try {
+        const resp = await this.apiRequest(`/api/listarMensalidadesAluno/${aluno.id}`);
+        // Uma falha de consulta nao significa que o aluno esta sem dividas.
+        if (!resp.ok) { houveFalha = true; continue; }
+        const mensalidades = await resp.json();
+        const temVencida = mensalidades.some(m =>
+          m.status === 'ATRASADO' || (m.status === 'PENDENTE' && m.dataVencimento && m.dataVencimento < hoje)
+        );
+        const novoStatus = temVencida ? 'INADIMPLENTE' : 'ATIVO';
+        if (aluno.status === novoStatus) continue;
+        const atualizacao = await this.apiRequest(`/api/atualizarStatusAluno/${aluno.id}`, {
+          method: 'PATCH', body: JSON.stringify({ status: novoStatus })
+        });
+        if (atualizacao.ok) aluno.status = novoStatus;
+        else houveFalha = true;
+      } catch (_) { houveFalha = true; }
     }
+    if (houveFalha) this.mostrarToast('Não foi possível atualizar a situação financeira de alguns alunos. Tente recarregar em instantes.', 'warning');
   }
 
   renderizarTabelaAlunos() {
@@ -713,6 +713,7 @@ class GymApp {
       const selectFiltro = document.getElementById('select-filtro-aluno-fin');
       if (selectFiltro) selectFiltro.value = dados.alunoId;
       await this.carregarMensalidadesDoAluno(dados.alunoId);
+      await this.carregarAlunos();
     } else {
       const err = await resp.json().catch(() => ({ mensagem: 'Falha ao gerar mensalidade' }));
       if (contexto !== this.contextoAba) return;
@@ -824,6 +825,7 @@ class GymApp {
       this.fecharModal('modal-pagamento');
       const alunoId = document.getElementById('select-filtro-aluno-fin').value;
       if (alunoId) await this.carregarMensalidadesDoAluno(alunoId);
+      await this.carregarAlunos();
     } else {
       const err = await resp.json().catch(() => ({ mensagem: 'Falha ao registrar pagamento' }));
       this.tratarErrosApi(err);

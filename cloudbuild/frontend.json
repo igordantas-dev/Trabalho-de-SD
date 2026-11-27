@@ -1,0 +1,10 @@
+{
+  "steps": [
+    {
+      "name": "gcr.io/cloud-builders/docker",
+      "args": ["build", "-f", "frontend/Dockerfile", "-t", "us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/frontend:${_TAG}", "."]
+    }
+  ],
+  "images": ["us-central1-docker.pkg.dev/$PROJECT_ID/gymflow/frontend:${_TAG}"],
+  "substitutions": {"_TAG": "manual"}
+}
